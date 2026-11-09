@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#10172f">
-<title>My Little Pet • Growth & Memory v0.5</title>
+<title>My Little Pet • Save Manager v0.6</title>
 <style>
 :root{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#f5f7ff;background:#10172f;font-size:16px}
 *{box-sizing:border-box} body{margin:0;min-height:100vh;background:radial-gradient(circle at 52% 16%,#273963 0,#10172f 65%)}
@@ -31,10 +31,22 @@ button:disabled{opacity:.46;cursor:not-allowed}.connect{width:100%;background:#8
 .save-value{font-size:.98rem;font-weight:750;color:#edf6ff}
 .save-notice{margin-top:13px;font-size:.81rem;line-height:1.5;color:#b4c9df}
 .status{padding:12px 0 0;font-size:.84rem;color:#d8e8f4;min-height:40px;line-height:1.4}.details{font-size:.79rem;color:#a7b9d4;line-height:1.5}.footer{text-align:center;color:#8499b9;font-size:.75rem;margin-top:19px}
+
+.slots{display:grid;gap:11px;margin-top:14px}
+.slot-card{border:1px solid #405273;border-radius:14px;padding:13px;background:#202f4e;display:grid;gap:8px}
+.slot-card.active{border-color:#8ff1d6;background:#1a3a40}
+.slot-card.protected{border-color:#cf9d54}
+.slot-top{display:flex;justify-content:space-between;align-items:start;gap:10px}
+.slot-title{font-weight:780}.slot-sub{font-size:.79rem;color:#b6c8df;line-height:1.3}
+.slot-entry{display:flex;gap:8px}
+.slot-entry input{flex:1;min-width:70px;border-radius:9px;border:1px solid #7187a8;background:#111d35;color:#fff;padding:10px;font:inherit}
+.slot-entry button{font-size:.85rem;padding:10px 14px;min-height:44px}
+.slot-card>button{font-size:.88rem;min-height:44px;padding:10px}
+[hidden]{display:none!important}
 </style>
 </head>
 <body><main>
-<header class="top"><div><h1>🐣 My Little Pet</h1><div class="small">iPhone companion • Growth & Memory v0.5</div></div><div id="badge" class="tag">Not connected</div></header>
+<header class="top"><div><h1>🐣 My Little Pet</h1><div class="small">iPhone companion • Save Manager v0.6</div></div><div id="badge" class="tag">Not connected</div></header>
 <section class="stage" aria-label="Animated picture of the pet"><div class="pet"><div class="eyes"><div class="eye"></div><div class="eye"></div></div><div class="mouth"></div></div><div id="petMood" class="caption">Waiting to meet you!</div></section>
 <section class="panel"><h2>Pet status</h2><div class="details" id="syncAge">Waiting for a fresh reading from the board.</div>
 <div class="stat"><div class="stathead"><span>🍎 Food</span><span id="foodValue">—</span></div><div class="track"><div class="fill food" id="foodBar"></div></div></div>
@@ -53,13 +65,20 @@ button:disabled{opacity:.46;cursor:not-allowed}.connect{width:100%;background:#8
  <div class="save-item"><div class="save-key">Interactions</div><div class="save-value" id="interactionValue">—</div></div>
 </div>
 <div class="save-notice" id="saveValue">Save status: waiting for the pet.</div>
-<div class="save-notice">This version keeps <b>Slot 1</b> in the ESP32's internal flash. The multiple-save menu and SD card backups will be added after this first slot passes its power-off test.</div>
+<div class="save-notice">Each pet has independent memories. Slot 1 keeps your existing Sprout save. Names and progress live on the ESP32, not on the iPhone.</div>
+</section>
+<section class="panel" id="managerPanel" hidden>
+<h2>📂 Saved pets</h2>
+<div class="details">Switch to an existing pet, or name an empty slot to create a new one. The active pet is saved before switching. This first version deliberately has <b>no delete or overwrite</b> control.</div>
+<div id="slots" class="slots" aria-live="polite"></div>
+<button id="reloadSlots" class="secondary" disabled style="width:100%;margin-top:12px">↻ Refresh save list</button>
+<div id="slotMessage" class="save-notice">Connect to load saved pets.</div>
 </section>
 <section class="panel"><h2>Bluetooth connection</h2>
 <div class="details">Use this page inside the <b>Bluefy</b> app on your iPhone. Enable Bluetooth, keep your pet powered on and nearby, then press Connect. You do not need to pair in iPhone Settings.</div>
 <button class="connect" id="connect">ᛒ Connect to pet</button><button class="secondary" style="width:100%;margin-top:10px" id="disconnect" disabled>Disconnect</button>
 <div role="status" aria-live="polite" class="status" id="status">Ready to connect.</div></section>
-<div class="footer">Growth and care run offline. Save Slot 1 is stored on the board; Gemini and SD backup come later. No API key is stored here.</div>
+<div class="footer">Growth and care run offline. Save Slot 1 is stored on the board; Gemini and SD backup come later. No API key is stored here. Slots 1–4 use internal flash; SD card is not yet used.</div>
 </main>
 <script>
 'use strict';
@@ -67,6 +86,12 @@ button:disabled{opacity:.46;cursor:not-allowed}.connect{width:100%;background:#8
 const SERVICE='746a5f13-dc18-4db8-ace5-a490b9dd5610';
 const COMMAND='746a5f14-dc18-4db8-ace5-a490b9dd5610';
 const STATUS='746a5f15-dc18-4db8-ace5-a490b9dd5610';
+const SLOT_UUIDS=[
+  '746a5f16-dc18-4db8-ace5-a490b9dd5610',
+  '746a5f17-dc18-4db8-ace5-a490b9dd5610',
+  '746a5f18-dc18-4db8-ace5-a490b9dd5610',
+  '746a5f19-dc18-4db8-ace5-a490b9dd5610',
+];
 const moods=['Happy','Hungry','Sleepy','Curious','Eating','Playing'];
 const stages=['Baby','Child','Teen','Adult'];
 const personalities=['Balanced','Playful','Affectionate','Curious'];
@@ -75,6 +100,9 @@ let device=null,commandChar=null,statusChar=null,poll=null,sending=false;
 let lastUpdate=0,lastSequence=null,pending=null,hasAckProtocol=false;
 let gattTail=Promise.resolve();
 let countSent=0,countAck=0;
+let profileProtocol=0,activeSlot=1,slots=new Array(4).fill(null);
+let profilesChars=[],profilesService=null,refreshingProfiles=false,occupiedMask=0,blockedMask=0;
+
 
 function message(value){el('status').textContent=value;}
 function connected(){return !!(device&&device.gatt&&device.gatt.connected&&commandChar);}
@@ -85,6 +113,8 @@ function buttons(){
   el('refresh').disabled=!active||sending;
   el('disconnect').disabled=!active;
   el('connect').disabled=active||sending;
+  el('reloadSlots').disabled=!active||sending||profileProtocol<6;
+  for(const btn of el('slots').querySelectorAll('button'))btn.disabled=!active||sending;
   el('badge').textContent=active?'Connected':'Not connected';
   el('badge').className=active?'tag live':'tag';
 }
@@ -99,6 +129,10 @@ function clearValues(){
   el('profileNote').textContent='Connect the pet running v0.5 firmware to see its saved profile.';
   el('saveValue').textContent='Save status: waiting for the pet.';
   lastUpdate=0;lastSequence=null;pending=null;hasAckProtocol=false;
+  profileProtocol=0;activeSlot=1;slots=new Array(4).fill(null);
+  profilesChars=[];profilesService=null;refreshingProfiles=false;occupiedMask=0;blockedMask=0;
+  el('managerPanel').hidden=true;el('slots').replaceChildren();
+  el('slotMessage').textContent='Connect to load saved pets.';
 }
 function formatAge(){
   if(!connected()){el('syncAge').textContent='Not connected to the board.';return;}
@@ -127,8 +161,9 @@ function onStatus(event){
     showValue('energy',data.getUint8(2));
     el('petMood').textContent='Feeling: '+(moods[data.getUint8(3)]||'Unknown');
     lastUpdate=Date.now();formatAge();
-    // v0.5 extends the seven-byte ACK format without changing its prefix.
-    if(data.byteLength>=18 && data.getUint8(7)===5){
+    // v0.5 and v0.6 keep the same first 18 bytes of profile stats.
+    if(data.byteLength>=18 && [5,6].includes(data.getUint8(7))){
+      const ver=data.getUint8(7);
       const stage=data.getUint8(8);
       const type=data.getUint8(9);
       const bond=data.getUint8(10);
@@ -136,20 +171,30 @@ function onStatus(event){
       const minutes=data.getUint32(12,true);
       const slot=data.getUint8(16);
       const flags=data.getUint8(17);
-      el('slotValue').textContent='Slot '+slot+' • Sprout';
+      const oldSlot=activeSlot;
+      activeSlot=slot;
+      profileProtocol=ver;
+      if(ver===6 && data.byteLength>=20){
+        occupiedMask=data.getUint8(18);blockedMask=data.getUint8(19);
+      }
+      el('managerPanel').hidden=ver<6;
+      const name=slots[slot-1]?.name||(ver===5?'Sprout':'Pet');
+      el('slotValue').textContent='Slot '+slot+' • '+name;
       el('stageValue').textContent=stages[stage]||'Unknown';
       el('personalityValue').textContent=personalities[type]||'Unknown';
       el('ageValue').textContent=formatMinutes(minutes);
       el('bondValue').textContent=bond+' / 100';
       el('interactionValue').textContent=interactions===255?'255+':String(interactions);
-      el('profileNote').textContent='Progress belongs to this pet, not to the phone. Grow it by spending time together and caring for it.';
+      el('profileNote').textContent='Saved growth and personality belong to the currently active pet.';
       const enabled=(flags&1)!==0,dirty=(flags&2)!==0;
       el('saveValue').textContent=!enabled
-        ?'⚠ Saving is unavailable. Check the board serial log before switching it off.'
-        :dirty?'⏳ Changes pending — autosave shortly.':'✓ Progress saved in ESP32 flash.';
+        ?'⚠ Saving unavailable. Check the board log; do not switch or power off.'
+        :dirty?'⏳ Changes pending — recent progress will autosave.':'✓ Progress saved in ESP32 flash.';
+      if(ver===6 && (slot!==oldSlot || el('slots').children.length===0))renderSlots();
     }else{
-      el('profileNote').textContent='Connected to older firmware. Upload v0.5 to unlock persistent growth.';
-      el('saveValue').textContent='Save status: v0.5 firmware not detected.';
+      el('managerPanel').hidden=true;
+      el('profileNote').textContent='Connected to older firmware. Upgrade to v0.6 for saved pets.';
+      el('saveValue').textContent='Save status not available in this firmware.';
     }
     // New firmware appends three bytes to the original, compatible 4-byte status:
     // sequence, command ('f' / 'p'), result (0=changed, 1=already full).
@@ -160,10 +205,17 @@ function onStatus(event){
       const result=data.getUint8(6);
       if(pending&&action===pending.ch&&sequence!==pending.baseSequence){
         const label=pending.label;
-        const note=result===1?`${label} received — meter ALREADY FULL.`:`${label} confirmed by pet!`;
+        const errors={1:'meter ALREADY FULL',2:'invalid slot',3:'slot already occupied',4:'save failed',5:'slot is empty',6:'slot protected or invalid name'};
+        const note=result===0?`${label} confirmed by pet!`
+          :result===1?`${label} received — meter ALREADY FULL.`
+          :`${label} rejected: ${errors[result]||'unknown error'}.`;
         el('lastAction').textContent='Last action: '+note;
         message(note);
         pending=null;countAck++;
+        if((action==='s'||action==='n')&&profileProtocol>=6){
+          el('slotMessage').textContent=note;
+          void refreshProfiles();
+        }
       } else if(!pending&&sequence!==lastSequence&&(action==='f'||action==='p')){
         const note=(action==='f'?'Fed':'Played')+(result===1?' (meter already full)':'');
         el('lastAction').textContent='Last board action: '+note;
@@ -202,6 +254,7 @@ async function connect(){
     message('Connecting…');
     const server=await device.gatt.connect();
     const service=await server.getPrimaryService(SERVICE);
+    profilesService=service;
     commandChar=await service.getCharacteristic(COMMAND);
     statusChar=await service.getCharacteristic(STATUS);
     clearValues();
@@ -211,10 +264,11 @@ async function connect(){
     }catch(error){console.warn('Status notifications unavailable, will use polling',error);}
     buttons();
     await readStatus();
+    if(profileProtocol>=6)await refreshProfiles();
     clearInterval(poll);
     // Only poll when notifications haven't delivered a reading recently.
     poll=setInterval(()=>{formatAge();if(connected()&&!sending&&Date.now()-lastUpdate>3500)readStatus();},3000);
-    message('Connected. Tap Feed or Play, then watch for board confirmation.');
+    message('Connected. Feed, Play, or switch pets below.');
   }catch(error){
     const why=error.message||String(error);
     if(device&&device.gatt&&device.gatt.connected)device.gatt.disconnect();
@@ -234,25 +288,94 @@ async function writeCommand(ch){
 async function action(ch,label){
   if(!connected()||sending)return;
   sending=true;buttons();countSent++;
-  const thisPending={ch,label,baseSequence:lastSequence};
+  const thisPending={ch:ch[0],label,baseSequence:lastSequence};
   pending=thisPending;
   message(`${label}: sending to pet…`);
   try{
     await writeCommand(ch);
     if(pending===thisPending)message(`${label} sent. Checking pet response…`);
-    await new Promise(resolve=>setTimeout(resolve,400));
-    await readStatus();
+    const profileAction=ch[0]==='s'||ch[0]==='n';
+    for(let attempt=0;attempt<(profileAction?4:2)&&pending===thisPending;attempt++){
+      await new Promise(resolve=>setTimeout(resolve,profileAction?650:400));
+      await readStatus();
+    }
     if(pending===thisPending){
       message(hasAckProtocol
         ?`${label} sent, but the pet hasn't confirmed it yet. Tap Refresh.`
         :`${label} sent. Board firmware v0.4 doesn't report action receipts. Update firmware to v0.4.1.`);
-      el('lastAction').textContent='Last action: waiting for '+label+' confirmation';
+      el('lastAction').textContent='Last action: no confirmation for '+label;
+      if(profileAction)el('slotMessage').textContent='No board confirmation. Refresh the list before retrying.';
       pending=null;
     }
   }catch(error){
     if(pending===thisPending)pending=null;
     message(`${label} could not be sent: ${error.message||error}. Reconnect if needed.`);
   }finally{sending=false;buttons();}
+}
+
+function renderSlots(){
+  if(profileProtocol<6)return;
+  const root=el('slots');root.replaceChildren();
+  for(let i=1;i<=4;i++){
+    const profile=slots[i-1];
+    const state=profile?.state??((blockedMask&(1<<(i-1)))?2:(occupiedMask&(1<<(i-1)))?1:0);
+    const card=document.createElement('div');card.className='slot-card'+(i===activeSlot?' active':'')+(state===2?' protected':'');
+    const top=document.createElement('div');top.className='slot-top';
+    const info=document.createElement('div');
+    const title=document.createElement('div');title.className='slot-title';
+    title.textContent=`Slot ${i} — ${state===1?(profile?.name||'Saved pet'):state===2?'Protected save':'Empty'}`;
+    const subtitle=document.createElement('div');subtitle.className='slot-sub';
+    subtitle.textContent=state===1
+      ?`${stages[profile?.stage||0]} · ${formatMinutes(profile?.minutes||0)} together`
+      :state===2?'Existing data cannot be safely read. No changes allowed.'
+      :'Ready for a new pet';
+    info.append(title,subtitle);top.append(info);
+    if(i===activeSlot){const badge=document.createElement('span');badge.className='tag live';badge.textContent='Active';top.append(badge);}
+    card.append(top);
+    if(state===1&&i!==activeSlot){
+      const btn=document.createElement('button');btn.className='secondary';btn.textContent='Switch to this pet';
+      btn.disabled=!connected()||sending;
+      btn.addEventListener('click',()=>action('s'+i,'Switch to Slot '+i));
+      card.append(btn);
+    }else if(state===0){
+      const row=document.createElement('div');row.className='slot-entry';
+      const field=document.createElement('input');field.type='text';field.maxLength=11;field.placeholder='Pet name (11 chars)';field.setAttribute('aria-label','Name for new pet in slot '+i);field.autocomplete='off';
+      const btn=document.createElement('button');btn.className='feed';btn.textContent='Create';btn.disabled=!connected()||sending;
+      btn.addEventListener('click',()=>{
+        const name=field.value.trim();
+        if(!/^[A-Za-z0-9][A-Za-z0-9 -]{0,10}$/.test(name)){
+          el('slotMessage').textContent='Use 1–11 letters/numbers, spaces or hyphens; start with a letter/number.';return;
+        }
+        if(!confirm(`Create ${name} in empty Slot ${i} and switch to it?`))return;
+        action('n'+i+name,'Create '+name);
+      });
+      row.append(field,btn);card.append(row);
+    }
+    root.append(card);
+  }
+  buttons();
+}
+
+async function refreshProfiles(){
+  if(!connected()||profileProtocol<6||refreshingProfiles||!profilesService)return;
+  refreshingProfiles=true;
+  el('slotMessage').textContent='Reading four save slots from pet…';
+  try{
+    for(let i=0;i<4;i++){
+      if(!profilesChars[i])profilesChars[i]=await profilesService.getCharacteristic(SLOT_UUIDS[i]);
+      const data=await gattOperation(()=>profilesChars[i].readValue());
+      if(!data||data.byteLength<20||data.getUint8(0)!==6||data.getUint8(1)!==i+1)
+        throw new Error('Unexpected slot '+(i+1)+' response');
+      const bytes=[];
+      for(let j=9;j<20;j++){const b=data.getUint8(j);if(!b)break;bytes.push(b);}
+      slots[i]={state:data.getUint8(2),stage:data.getUint8(3),type:data.getUint8(4),
+        minutes:data.getUint32(5,true),name:String.fromCharCode(...bytes)};
+    }
+    el('slotValue').textContent='Slot '+activeSlot+' • '+(slots[activeSlot-1]?.name||'Pet');
+    el('slotMessage').textContent='Save list updated. Existing pets are protected from overwriting.';
+    renderSlots();
+  }catch(error){el('slotMessage').textContent='Unable to read pet saves: '+(error.message||error);}
+  finally{refreshingProfiles=false;buttons();}
 }
 
 el('connect').addEventListener('click',connect);
@@ -263,6 +386,7 @@ el('disconnect').addEventListener('click',()=>{
 el('feed').addEventListener('click',()=>action('f','Feed'));
 el('play').addEventListener('click',()=>action('p','Play'));
 el('refresh').addEventListener('click',()=>readStatus());
+el('reloadSlots').addEventListener('click',()=>refreshProfiles());
 clearValues();buttons();formatAge();
 if(!window.isSecureContext||!navigator.bluetooth)
   message('Open the hosted HTTPS address inside Bluefy, not Safari or a local file.');

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#10172f">
-<title>My Little Pet • iPhone Companion</title>
+<title>My Little Pet • Growth & Memory v0.5</title>
 <style>
 :root{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#f5f7ff;background:#10172f;font-size:16px}
 *{box-sizing:border-box} body{margin:0;min-height:100vh;background:radial-gradient(circle at 52% 16%,#273963 0,#10172f 65%)}
@@ -25,22 +25,41 @@ h1{font-size:1.45rem;margin:0;font-weight:800;letter-spacing:.2px}.top{display:f
 .track{height:11px;background:#34405b;border-radius:7px;overflow:hidden}.fill{height:100%;width:0%;border-radius:7px;transition:width .3s ease}.food{background:#ffc66d}.fun{background:#af92ff}.energy{background:#76b9f7}
 .actions{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:13px}button{font:inherit;border:none;border-radius:16px;padding:14px 10px;min-height:53px;font-weight:750;cursor:pointer;-webkit-tap-highlight-color:transparent}
 button:disabled{opacity:.46;cursor:not-allowed}.connect{width:100%;background:#8ff1d6;color:#10273c;margin-top:10px}.secondary{background:#2d4267;color:#e6eaff}.feed{background:#ffc66d;color:#342513}.play{background:#b9a7ff;color:#211d46}
+.save-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.save-item{border:1px solid #405273;background:#202f4e;padding:12px;border-radius:12px}
+.save-key{font-size:.73rem;color:#b6c7de;margin-bottom:5px}
+.save-value{font-size:.98rem;font-weight:750;color:#edf6ff}
+.save-notice{margin-top:13px;font-size:.81rem;line-height:1.5;color:#b4c9df}
 .status{padding:12px 0 0;font-size:.84rem;color:#d8e8f4;min-height:40px;line-height:1.4}.details{font-size:.79rem;color:#a7b9d4;line-height:1.5}.footer{text-align:center;color:#8499b9;font-size:.75rem;margin-top:19px}
 </style>
 </head>
 <body><main>
-<header class="top"><div><h1>🐣 My Little Pet</h1><div class="small">iPhone companion • Bluetooth test v0.4.1</div></div><div id="badge" class="tag">Not connected</div></header>
+<header class="top"><div><h1>🐣 My Little Pet</h1><div class="small">iPhone companion • Growth & Memory v0.5</div></div><div id="badge" class="tag">Not connected</div></header>
 <section class="stage" aria-label="Animated picture of the pet"><div class="pet"><div class="eyes"><div class="eye"></div><div class="eye"></div></div><div class="mouth"></div></div><div id="petMood" class="caption">Waiting to meet you!</div></section>
 <section class="panel"><h2>Pet status</h2><div class="details" id="syncAge">Waiting for a fresh reading from the board.</div>
 <div class="stat"><div class="stathead"><span>🍎 Food</span><span id="foodValue">—</span></div><div class="track"><div class="fill food" id="foodBar"></div></div></div>
 <div class="stat"><div class="stathead"><span>🎮 Fun</span><span id="funValue">—</span></div><div class="track"><div class="fill fun" id="funBar"></div></div></div>
 <div class="stat"><div class="stathead"><span>🌙 Energy</span><span id="energyValue">—</span></div><div class="track"><div class="fill energy" id="energyBar"></div></div></div>
 <div class="actions"><button class="feed" id="feed" disabled>🍎 Feed</button><button class="play" id="play" disabled>🎲 Play</button></div><button class="secondary" style="width:100%;margin-top:12px" id="refresh" disabled>↻ Refresh stats from pet</button><div class="details" id="lastAction" style="margin-top:10px">Last action: none</div></section>
+<section class="panel" aria-label="Persistent pet profile">
+<h2>🌱 Growth & memory</h2>
+<div class="details" id="profileNote">Connect the pet running v0.5 firmware to see its saved profile.</div>
+<div class="save-grid">
+ <div class="save-item"><div class="save-key">Current save</div><div class="save-value" id="slotValue">—</div></div>
+ <div class="save-item"><div class="save-key">Growth stage</div><div class="save-value" id="stageValue">—</div></div>
+ <div class="save-item"><div class="save-key">Personality</div><div class="save-value" id="personalityValue">—</div></div>
+ <div class="save-item"><div class="save-key">Time together</div><div class="save-value" id="ageValue">—</div></div>
+ <div class="save-item"><div class="save-key">Bond</div><div class="save-value" id="bondValue">—</div></div>
+ <div class="save-item"><div class="save-key">Interactions</div><div class="save-value" id="interactionValue">—</div></div>
+</div>
+<div class="save-notice" id="saveValue">Save status: waiting for the pet.</div>
+<div class="save-notice">This version keeps <b>Slot 1</b> in the ESP32's internal flash. The multiple-save menu and SD card backups will be added after this first slot passes its power-off test.</div>
+</section>
 <section class="panel"><h2>Bluetooth connection</h2>
 <div class="details">Use this page inside the <b>Bluefy</b> app on your iPhone. Enable Bluetooth, keep your pet powered on and nearby, then press Connect. You do not need to pair in iPhone Settings.</div>
 <button class="connect" id="connect">ᛒ Connect to pet</button><button class="secondary" style="width:100%;margin-top:10px" id="disconnect" disabled>Disconnect</button>
 <div role="status" aria-live="polite" class="status" id="status">Ready to connect.</div></section>
-<div class="footer">Pet care works offline on the board. Gemini and SD saving come later. No API key is needed here.</div>
+<div class="footer">Growth and care run offline. Save Slot 1 is stored on the board; Gemini and SD backup come later. No API key is stored here.</div>
 </main>
 <script>
 'use strict';
@@ -49,6 +68,8 @@ const SERVICE='746a5f13-dc18-4db8-ace5-a490b9dd5610';
 const COMMAND='746a5f14-dc18-4db8-ace5-a490b9dd5610';
 const STATUS='746a5f15-dc18-4db8-ace5-a490b9dd5610';
 const moods=['Happy','Hungry','Sleepy','Curious','Eating','Playing'];
+const stages=['Baby','Child','Teen','Adult'];
+const personalities=['Balanced','Playful','Affectionate','Curious'];
 const el=id=>document.getElementById(id);
 let device=null,commandChar=null,statusChar=null,poll=null,sending=false;
 let lastUpdate=0,lastSequence=null,pending=null,hasAckProtocol=false;
@@ -73,6 +94,10 @@ function clearValues(){
   }
   el('petMood').textContent='Waiting to meet you!';
   el('lastAction').textContent='Last action: none';
+  for(const name of ['slot','stage','personality','age','bond','interaction'])
+    el(name+'Value').textContent='—';
+  el('profileNote').textContent='Connect the pet running v0.5 firmware to see its saved profile.';
+  el('saveValue').textContent='Save status: waiting for the pet.';
   lastUpdate=0;lastSequence=null;pending=null;hasAckProtocol=false;
 }
 function formatAge(){
@@ -87,6 +112,12 @@ function showValue(id,value){
   el(id+'Value').textContent=value+' / 100';
   el(id+'Bar').style.width=Math.max(0,Math.min(value,100))+'%';
 }
+function formatMinutes(mins){
+  const days=Math.floor(mins/1440);
+  const hours=Math.floor((mins%1440)/60);
+  const minutes=mins%60;
+  return (days?days+'d ':'')+(hours?hours+'h ':'')+minutes+'m';
+}
 function onStatus(event){
   try{
     const data=event.target.value;
@@ -96,6 +127,30 @@ function onStatus(event){
     showValue('energy',data.getUint8(2));
     el('petMood').textContent='Feeling: '+(moods[data.getUint8(3)]||'Unknown');
     lastUpdate=Date.now();formatAge();
+    // v0.5 extends the seven-byte ACK format without changing its prefix.
+    if(data.byteLength>=18 && data.getUint8(7)===5){
+      const stage=data.getUint8(8);
+      const type=data.getUint8(9);
+      const bond=data.getUint8(10);
+      const interactions=data.getUint8(11);
+      const minutes=data.getUint32(12,true);
+      const slot=data.getUint8(16);
+      const flags=data.getUint8(17);
+      el('slotValue').textContent='Slot '+slot+' • Sprout';
+      el('stageValue').textContent=stages[stage]||'Unknown';
+      el('personalityValue').textContent=personalities[type]||'Unknown';
+      el('ageValue').textContent=formatMinutes(minutes);
+      el('bondValue').textContent=bond+' / 100';
+      el('interactionValue').textContent=interactions===255?'255+':String(interactions);
+      el('profileNote').textContent='Progress belongs to this pet, not to the phone. Grow it by spending time together and caring for it.';
+      const enabled=(flags&1)!==0,dirty=(flags&2)!==0;
+      el('saveValue').textContent=!enabled
+        ?'⚠ Saving is unavailable. Check the board serial log before switching it off.'
+        :dirty?'⏳ Changes pending — autosave shortly.':'✓ Progress saved in ESP32 flash.';
+    }else{
+      el('profileNote').textContent='Connected to older firmware. Upload v0.5 to unlock persistent growth.';
+      el('saveValue').textContent='Save status: v0.5 firmware not detected.';
+    }
     // New firmware appends three bytes to the original, compatible 4-byte status:
     // sequence, command ('f' / 'p'), result (0=changed, 1=already full).
     if(data.byteLength>=7){

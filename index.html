@@ -29,13 +29,13 @@ button:disabled{opacity:.46;cursor:not-allowed}.connect{width:100%;background:#8
 </style>
 </head>
 <body><main>
-<header class="top"><div><h1>🐣 My Little Pet</h1><div class="small">iPhone companion • Bluetooth test v0.4</div></div><div id="badge" class="tag">Not connected</div></header>
+<header class="top"><div><h1>🐣 My Little Pet</h1><div class="small">iPhone companion • Bluetooth test v0.4.1</div></div><div id="badge" class="tag">Not connected</div></header>
 <section class="stage" aria-label="Animated picture of the pet"><div class="pet"><div class="eyes"><div class="eye"></div><div class="eye"></div></div><div class="mouth"></div></div><div id="petMood" class="caption">Waiting to meet you!</div></section>
-<section class="panel"><h2>Pet status</h2>
+<section class="panel"><h2>Pet status</h2><div class="details" id="syncAge">Waiting for a fresh reading from the board.</div>
 <div class="stat"><div class="stathead"><span>🍎 Food</span><span id="foodValue">—</span></div><div class="track"><div class="fill food" id="foodBar"></div></div></div>
 <div class="stat"><div class="stathead"><span>🎮 Fun</span><span id="funValue">—</span></div><div class="track"><div class="fill fun" id="funBar"></div></div></div>
 <div class="stat"><div class="stathead"><span>🌙 Energy</span><span id="energyValue">—</span></div><div class="track"><div class="fill energy" id="energyBar"></div></div></div>
-<div class="actions"><button class="feed" id="feed" disabled>🍎 Feed</button><button class="play" id="play" disabled>🎲 Play</button></div></section>
+<div class="actions"><button class="feed" id="feed" disabled>🍎 Feed</button><button class="play" id="play" disabled>🎲 Play</button></div><button class="secondary" style="width:100%;margin-top:12px" id="refresh" disabled>↻ Refresh stats from pet</button><div class="details" id="lastAction" style="margin-top:10px">Last action: none</div></section>
 <section class="panel"><h2>Bluetooth connection</h2>
 <div class="details">Use this page inside the <b>Bluefy</b> app on your iPhone. Enable Bluetooth, keep your pet powered on and nearby, then press Connect. You do not need to pair in iPhone Settings.</div>
 <button class="connect" id="connect">ᛒ Connect to pet</button><button class="secondary" style="width:100%;margin-top:10px" id="disconnect" disabled>Disconnect</button>
@@ -44,29 +44,172 @@ button:disabled{opacity:.46;cursor:not-allowed}.connect{width:100%;background:#8
 </main>
 <script>
 'use strict';
-// UUIDs must match the ESP32 firmware.
+// Must match the UUIDs in the ESP32 firmware. No Gemini credentials are here.
 const SERVICE='746a5f13-dc18-4db8-ace5-a490b9dd5610';
 const COMMAND='746a5f14-dc18-4db8-ace5-a490b9dd5610';
 const STATUS='746a5f15-dc18-4db8-ace5-a490b9dd5610';
 const moods=['Happy','Hungry','Sleepy','Curious','Eating','Playing'];
-let device=null, commandChar=null, statusChar=null, poll=null, sending=false;
 const el=id=>document.getElementById(id);
-function message(s){el('status').textContent=s;}
-function connected(){return !!(device && device.gatt && device.gatt.connected && commandChar);}
-function buttons(){const ok=connected();el('feed').disabled=!ok;el('play').disabled=!ok;el('disconnect').disabled=!ok;el('connect').disabled=ok;el('badge').textContent=ok?'Connected':'Not connected';el('badge').className=ok?'tag live':'tag';}
-function showValue(id, v){el(id+'Value').textContent=v+' / 100';el(id+'Bar').style.width=Math.max(0,Math.min(v,100))+'%';}
-function onStatus(event){try{const v=event.target.value;if(!v || v.byteLength<4)return;showValue('food',v.getUint8(0));showValue('fun',v.getUint8(1));showValue('energy',v.getUint8(2));el('petMood').textContent='Feeling: '+(moods[v.getUint8(3)]||'Unknown');}catch(e){message('Status decode: '+e.message);}}
-function onDisconnect(){clearInterval(poll);poll=null;commandChar=null;statusChar=null;buttons();message('Disconnected. Tap Connect to reconnect.');}
-async function readStatus(){if(!connected() || !statusChar)return;try{const v=await statusChar.readValue();onStatus({target:{value:v}});}catch(e){console.warn('BLE read failed',e);}}
-async function connect(){if(!navigator.bluetooth){message('Open this HTTPS page inside Bluefy on iPhone. Standard Safari does not support Web Bluetooth.');return;}
-try{message('Searching for your pet…');device=await navigator.bluetooth.requestDevice({filters:[{services:[SERVICE]}],optionalServices:[SERVICE]});device.addEventListener('gattserverdisconnected',onDisconnect);
-message('Connecting…');const server=await device.gatt.connect();const service=await server.getPrimaryService(SERVICE);commandChar=await service.getCharacteristic(COMMAND);statusChar=await service.getCharacteristic(STATUS);
-try{await statusChar.startNotifications();statusChar.addEventListener('characteristicvaluechanged',onStatus);}catch(e){console.warn('Notifications unavailable: polling status',e);}
-buttons();await readStatus();clearInterval(poll);poll=setInterval(readStatus,2500);message('Connected! Feed or play using the buttons above.');
-}catch(e){message('Connection failed: '+(e.message||e));if(device?.gatt?.connected)device.gatt.disconnect();onDisconnect();}}
-async function action(ch,label){if(!connected() || sending)return;sending=true;el('feed').disabled=true;el('play').disabled=true;try{const bytes=new TextEncoder().encode(ch);if(typeof commandChar.writeValueWithResponse==='function')await commandChar.writeValueWithResponse(bytes);else await commandChar.writeValue(bytes);message(label+' sent! Watch your pet’s screen.');setTimeout(readStatus,350);}catch(e){message(label+' failed: '+(e.message||e));}finally{sending=false;buttons();}}
-el('connect').addEventListener('click',connect);el('disconnect').addEventListener('click',()=>{if(device?.gatt?.connected)device.gatt.disconnect();onDisconnect();});el('feed').addEventListener('click',()=>action('f','Feed'));el('play').addEventListener('click',()=>action('p','Play'));
-buttons();
-if(!window.isSecureContext || !navigator.bluetooth)message('Use the Bluefy browser on iPhone, and open the hosted HTTPS URL (not a file:// or Safari page).');
+let device=null,commandChar=null,statusChar=null,poll=null,sending=false;
+let lastUpdate=0,lastSequence=null,pending=null,hasAckProtocol=false;
+let gattTail=Promise.resolve();
+let countSent=0,countAck=0;
+
+function message(value){el('status').textContent=value;}
+function connected(){return !!(device&&device.gatt&&device.gatt.connected&&commandChar);}
+function buttons(){
+  const active=connected();
+  el('feed').disabled=!active||sending;
+  el('play').disabled=!active||sending;
+  el('refresh').disabled=!active||sending;
+  el('disconnect').disabled=!active;
+  el('connect').disabled=active||sending;
+  el('badge').textContent=active?'Connected':'Not connected';
+  el('badge').className=active?'tag live':'tag';
+}
+function clearValues(){
+  for(const name of ['food','fun','energy']){
+    el(name+'Value').textContent='—';el(name+'Bar').style.width='0%';
+  }
+  el('petMood').textContent='Waiting to meet you!';
+  el('lastAction').textContent='Last action: none';
+  lastUpdate=0;lastSequence=null;pending=null;hasAckProtocol=false;
+}
+function formatAge(){
+  if(!connected()){el('syncAge').textContent='Not connected to the board.';return;}
+  if(!lastUpdate){el('syncAge').textContent='Connected, waiting for board stats…';return;}
+  const seconds=Math.floor((Date.now()-lastUpdate)/1000);
+  el('syncAge').textContent=seconds>=8
+    ?`⚠ Stats ${seconds}s old — tap Refresh stats.`
+    :`Live board reading • updated ${seconds}s ago`;
+}
+function showValue(id,value){
+  el(id+'Value').textContent=value+' / 100';
+  el(id+'Bar').style.width=Math.max(0,Math.min(value,100))+'%';
+}
+function onStatus(event){
+  try{
+    const data=event.target.value;
+    if(!data||data.byteLength<4)throw new Error('Board sent an incomplete status');
+    showValue('food',data.getUint8(0));
+    showValue('fun',data.getUint8(1));
+    showValue('energy',data.getUint8(2));
+    el('petMood').textContent='Feeling: '+(moods[data.getUint8(3)]||'Unknown');
+    lastUpdate=Date.now();formatAge();
+    // New firmware appends three bytes to the original, compatible 4-byte status:
+    // sequence, command ('f' / 'p'), result (0=changed, 1=already full).
+    if(data.byteLength>=7){
+      hasAckProtocol=true;
+      const sequence=data.getUint8(4);
+      const action=String.fromCharCode(data.getUint8(5));
+      const result=data.getUint8(6);
+      if(pending&&action===pending.ch&&sequence!==pending.baseSequence){
+        const label=pending.label;
+        const note=result===1?`${label} received — meter ALREADY FULL.`:`${label} confirmed by pet!`;
+        el('lastAction').textContent='Last action: '+note;
+        message(note);
+        pending=null;countAck++;
+      } else if(!pending&&sequence!==lastSequence&&(action==='f'||action==='p')){
+        const note=(action==='f'?'Fed':'Played')+(result===1?' (meter already full)':'');
+        el('lastAction').textContent='Last board action: '+note;
+      }
+      lastSequence=sequence;
+    }
+  }catch(error){message('Unable to decode pet status: '+error.message);}
+}
+// On iOS, BLE GATT reads and writes cannot safely overlap. Serialize them.
+function gattOperation(op){
+  const job=gattTail.then(op,op);
+  gattTail=job.catch(()=>{});
+  return job;
+}
+async function readStatus(){
+  if(!connected()||!statusChar)return;
+  try{
+    const value=await gattOperation(()=>statusChar.readValue());
+    onStatus({target:{value}});
+  }catch(error){message('Refresh failed: '+(error.message||error)+'. Try reconnecting.');}
+}
+function onDisconnect(){
+  clearInterval(poll);poll=null;
+  commandChar=null;statusChar=null;device=null;
+  sending=false;clearValues();buttons();formatAge();
+  message('Disconnected. Tap Connect to reconnect.');
+}
+async function connect(){
+  if(!navigator.bluetooth){
+    message('Open the HTTPS page in Bluefy, not ordinary Safari.');return;
+  }
+  try{
+    message('Searching for My Little Pet…');
+    device=await navigator.bluetooth.requestDevice({filters:[{services:[SERVICE]}],optionalServices:[SERVICE]});
+    device.addEventListener('gattserverdisconnected',onDisconnect);
+    message('Connecting…');
+    const server=await device.gatt.connect();
+    const service=await server.getPrimaryService(SERVICE);
+    commandChar=await service.getCharacteristic(COMMAND);
+    statusChar=await service.getCharacteristic(STATUS);
+    clearValues();
+    try{
+      await gattOperation(()=>statusChar.startNotifications());
+      statusChar.addEventListener('characteristicvaluechanged',onStatus);
+    }catch(error){console.warn('Status notifications unavailable, will use polling',error);}
+    buttons();
+    await readStatus();
+    clearInterval(poll);
+    // Only poll when notifications haven't delivered a reading recently.
+    poll=setInterval(()=>{formatAge();if(connected()&&!sending&&Date.now()-lastUpdate>3500)readStatus();},3000);
+    message('Connected. Tap Feed or Play, then watch for board confirmation.');
+  }catch(error){
+    const why=error.message||String(error);
+    if(device&&device.gatt&&device.gatt.connected)device.gatt.disconnect();
+    onDisconnect();message('Connection failed: '+why);
+  }
+}
+async function writeCommand(ch){
+  const data=new TextEncoder().encode(ch);
+  return gattOperation(async()=>{
+    if(typeof commandChar.writeValueWithResponse==='function'){
+      await commandChar.writeValueWithResponse(data);
+    }else{
+      await commandChar.writeValue(data);
+    }
+  });
+}
+async function action(ch,label){
+  if(!connected()||sending)return;
+  sending=true;buttons();countSent++;
+  const thisPending={ch,label,baseSequence:lastSequence};
+  pending=thisPending;
+  message(`${label}: sending to pet…`);
+  try{
+    await writeCommand(ch);
+    if(pending===thisPending)message(`${label} sent. Checking pet response…`);
+    await new Promise(resolve=>setTimeout(resolve,400));
+    await readStatus();
+    if(pending===thisPending){
+      message(hasAckProtocol
+        ?`${label} sent, but the pet hasn't confirmed it yet. Tap Refresh.`
+        :`${label} sent. Board firmware v0.4 doesn't report action receipts. Update firmware to v0.4.1.`);
+      el('lastAction').textContent='Last action: waiting for '+label+' confirmation';
+      pending=null;
+    }
+  }catch(error){
+    if(pending===thisPending)pending=null;
+    message(`${label} could not be sent: ${error.message||error}. Reconnect if needed.`);
+  }finally{sending=false;buttons();}
+}
+
+el('connect').addEventListener('click',connect);
+el('disconnect').addEventListener('click',()=>{
+  if(device&&device.gatt&&device.gatt.connected)device.gatt.disconnect();
+  onDisconnect();
+});
+el('feed').addEventListener('click',()=>action('f','Feed'));
+el('play').addEventListener('click',()=>action('p','Play'));
+el('refresh').addEventListener('click',()=>readStatus());
+clearValues();buttons();formatAge();
+if(!window.isSecureContext||!navigator.bluetooth)
+  message('Open the hosted HTTPS address inside Bluefy, not Safari or a local file.');
 </script>
 </body></html>

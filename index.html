@@ -217,6 +217,7 @@ input{min-width:70px;border-radius:9px;border:1px solid #7187a8;background:#111d
    <button type="button" id="spanMic">🎙️ Try speaking</button>
   </div>
   <div id="spanPracticeFeedback" class="span-feedback" role="status">Listen first, then practice.</div>
+  <div id="spanMicNote" class="span-note">Microphone support will be checked on this iPhone.</div>
   <button type="button" id="spanUsePet" class="secondary" style="width:100%;margin-top:9px" disabled>🐣 Practice this action with your pet</button>
   <div class="span-note">Supported phrases can trigger Feed, Play, Nap, or Wake over Bluetooth. This is a button-based practice action; the ESP32 does not yet understand spoken Spanish.</div>
  </section>
@@ -295,6 +296,10 @@ function buttons(){
   for(const id of ['clean','explore','peek','nap','wake','startGame','cup1','cup2','cup3','boardSound','previewToggle'])
     el(id).disabled=!active||sending||profileProtocol<7;
   el('nap').textContent='💤 Nap';
+  if(window.spanCenterReady){
+    const selected=spanWordById(spanWordId);
+    el('spanUsePet').disabled=!active||sending||!selected?.command;
+  }
   for(const btn of el('slots').querySelectorAll('button'))btn.disabled=!active||sending;
   el('badge').textContent=active?'Connected':'Not connected';
   el('badge').className=active?'tag live':'tag';
@@ -1036,6 +1041,10 @@ try{spanRememberedSlot=Number(localStorage.getItem('sprout-spanish-last-slot'))|
 spanLoad(spanRememberedSlot>=1&&spanRememberedSlot<=4?spanRememberedSlot:1);
 el('spanMic').disabled=!(window.SpeechRecognition||window.webkitSpeechRecognition);
 el('spanMic').title=el('spanMic').disabled?'Speech recognition is unavailable in this browser; typing works.':'Try the current phrase with your microphone.';
+el('spanMicNote').textContent=el('spanMic').disabled
+ ?'Voice recognition is unavailable in this browser. Listen, repeat aloud, and use typing or quizzes to practice.'
+ :'🎙️ Voice recognition is available to try. It checks recognized words, not your accent or pronunciation quality.';
+window.spanCenterReady=true;
 
 </script>
 </body></html>

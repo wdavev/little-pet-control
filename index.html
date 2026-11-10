@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#10172f">
-<title>My Little Pet • Sprout v0.7.1</title>
+<title>My Little Pet • Sprout v0.7.2</title>
 <style>
 :root{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#f5f7ff;background:#10172f;font-size:16px}
 *{box-sizing:border-box} body{margin:0;min-height:100vh;background:radial-gradient(circle at 52% 16%,#273963 0,#10172f 65%)}
@@ -56,14 +56,18 @@ button:disabled{opacity:.46;cursor:not-allowed}.connect{width:100%;background:#8
 .care-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:12px 0}
 .care-grid button{background:#29466a;color:#edf6ff}
 .game-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:12px 0}
-.game-grid button{background:#8ce1d4;color:#12333c;font-size:.98rem}
+.game-grid button{background:#8ce1d4;color:#12333c;font-size:.98rem;min-height:100px;border-radius:16px;box-shadow:inset 0 -6px #409f9d;}
+.game-grid button:active{transform:translateY(2px);box-shadow:inset 0 -3px #409f9d}
+.game-status{margin:8px 0;color:#d7e7ff;min-height:42px}
+.audio-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:20px}
+.audio-actions button{background:#34517b;color:#fff;font-size:.88rem;min-height:56px}
 .growth-notice{background:#233754;border:1px solid #486488;border-radius:13px;padding:12px;line-height:1.5;margin:12px 0;color:#d4e2f2;font-size:.84rem}
 input{min-width:70px;border-radius:9px;border:1px solid #7187a8;background:#111d35;color:#fff;padding:10px;font:inherit}
 [hidden]{display:none!important}
 </style>
 </head>
 <body><main>
-<header class="top"><div><h1>🐣 My Little Pet</h1><div class="small">Sprout & friends • Baby care v0.7.1</div></div><div id="badge" class="tag">Not connected</div></header>
+<header class="top"><div><h1>🐣 My Little Pet</h1><div class="small">Sprout & friends • Baby care v0.7.2</div></div><div id="badge" class="tag">Not connected</div></header>
 <section class="stage" aria-label="Pet portrait matching the ESP32 display">
 <!-- This SVG deliberately follows the ESP32 ST7789 drawPet geometry/colors. -->
 <svg id="petArt" class="pet-svg" viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg" aria-label="Teal Sprout with round ears, eyes, blush and feet" data-mood="Happy">
@@ -102,8 +106,10 @@ input{min-width:70px;border-radius:9px;border:1px solid #7187a8;background:#111d
 <div class="details">Sprout hides a star behind one of three cups. Pick a cup to guess where it is!</div>
 <button class="secondary" id="startGame" style="width:100%;margin-top:10px" disabled>⭐ Start mini-game</button>
 <div id="cupButtons" class="game-grid" hidden>
-<button id="cup1" disabled>🥤 Cup 1</button><button id="cup2" disabled>🥤 Cup 2</button><button id="cup3" disabled>🥤 Cup 3</button>
-</div><div id="gameStatus" class="details">Start a game to play together.</div>
+<button id="cup1" disabled>🥤<div>Cup 1</div></button><button id="cup2" disabled>🥤<div>Cup 2</div></button><button id="cup3" disabled>🥤<div>Cup 3</div></button>
+</div><div id="gameStatus" class="game-status">Start a game to play together.</div>
+<div class="audio-actions"><button id="boardSound" disabled>🔊 Test pet speaker</button><button id="phoneSound">📱 Test iPhone sound</button></div>
+<div id="speakerStatus" class="details">Pet speaker test will play through the ESP32, not your phone.</div>
 </section>
 <section class="panel" aria-label="Persistent pet profile">
 <h2>🌱 Growth & memory</h2>
@@ -162,6 +168,7 @@ let countSent=0,countAck=0;
 let profileProtocol=0,activeSlot=1,slots=new Array(4).fill(null);
 let profilesChars=[],profilesService=null,refreshingProfiles=false,occupiedMask=0,blockedMask=0;
 let detail={preview:0,previewStage:0,ageHours:0,previewHours:0,sleeping:false,gameActive:false};
+let localStarUntil=0, lastStarGuessUntil=0;
 let lastAgeMinutes=0,lastStage=0,lastInteractions=0;
 
 
@@ -175,7 +182,7 @@ function buttons(){
   el('disconnect').disabled=!active;
   el('connect').disabled=active||sending;
   el('reloadSlots').disabled=!active||sending||profileProtocol<6;
-  for(const id of ['clean','explore','peek','nap','wake','startGame','cup1','cup2','cup3','previewToggle'])
+  for(const id of ['clean','explore','peek','nap','wake','startGame','cup1','cup2','cup3','boardSound','previewToggle'])
     el(id).disabled=!active||sending||profileProtocol<7;
   el('nap').textContent='💤 Nap';
   for(const btn of el('slots').querySelectorAll('button'))btn.disabled=!active||sending;
@@ -235,18 +242,23 @@ function updateDetailView(){
   el('cleanBar').style.width=detail.hygiene+'%';
   el('activityCount').textContent=`Explorations: ${detail.explorations} · Star wins: ${detail.wins} · Peekaboo: ${detail.peeks}`;
   el('sleepStatus').textContent=detail.sleeping?'💤 Sprout is asleep — tap Wake up when ready.':'☀️ Sprout is awake.';
+  el('speakerStatus').textContent=detail.audio
+    ?'ESP32 reports codec initialized. Use Test pet speaker to verify actual sound.'
+    :'⚠ ESP32 reports audio not initialized. Check USB serial output for Audio errors.';
   if(profileProtocol>=7)showGrowthProgress(lastAgeMinutes,lastStage,lastInteractions);
-  el('cupButtons').hidden=!detail.gameActive;
-  el('startGame').textContent=detail.gameActive?'⭐ Star hidden — choose a cup':'⭐ Start mini-game';
-  el('startGame').disabled=detail.gameActive||!connected()||sending;
-  if(detail.gameActive){el('gameStatus').textContent='A star is hidden. Choose Cup 1, 2, or 3!';}
-  else if(detail.gameResult===1){el('gameStatus').textContent='🌟 You found the star! Great teamwork.';}
-  else if(detail.gameResult===2){el('gameStatus').textContent='Close! The star was elsewhere. Try another round.';}
-  else if(detail.gameResult===3){el('gameStatus').textContent='The last game timed out. Start again!';}
+  const open=!!detail.gameActive || Date.now()<localStarUntil;
+  el('cupButtons').hidden=!open;
+  el('startGame').textContent=open?'⭐ Choose one of the three cups':'⭐ Start mini-game';
+  el('startGame').disabled=open||!connected()||sending;
+  if(open)el('gameStatus').textContent='⭐ A star is hidden! Tap Cup 1, 2 or 3 below. Look at Sprout’s screen.';
+  else if(detail.gameResult===1)el('gameStatus').textContent='🌟 You found the star! Great teamwork.';
+  else if(detail.gameResult===2)el('gameStatus').textContent='Not this time! The board shows the winning cup.';
+  else if(detail.gameResult===3)el('gameStatus').textContent='The last round timed out. Start another.';
+  else if(Date.now()<lastStarGuessUntil)el('gameStatus').textContent='Guess sent! Look at the ESP32 to see the answer.';
   el('previewToggle').textContent=detail.preview?'Stop test preview':'Start test preview';
   el('previewText').textContent=detail.preview
     ?`Simulated stage: ${stages[detail.previewStage]} · simulated age: ${detail.previewHours}h. Actual pet age: ${detail.ageHours}h. Nothing is saved by preview.`
-    :`Real stage stays unchanged. Test preview speeds up stage visuals only.`;
+    :'Real stage stays unchanged. Test preview speeds up stage visuals only.';
   el('nap').textContent='💤 Nap';
 }
 async function readDetails(){
@@ -263,7 +275,7 @@ async function readDetails(){
   }catch(error){
     const why=error.message||String(error);
     el('sleepStatus').textContent='⚠ Extra activity details unavailable ('+why+'). Wake up still works.';
-    el('gameStatus').textContent='Unable to read activity status: '+why;
+    if(Date.now()>=localStarUntil && Date.now()>=lastStarGuessUntil) el('gameStatus').textContent='Unable to read activity status: '+why;
   }
 }
 async function syncClock(){
@@ -372,6 +384,7 @@ async function readStatus(){
 function onDisconnect(){
   clearInterval(poll);poll=null;
   commandChar=null;statusChar=null;detailChar=null;device=null;
+  localStarUntil=0;lastStarGuessUntil=0;
   sending=false;clearValues();buttons();formatAge();
   message('Disconnected. Tap Connect to reconnect.');
 }
@@ -545,10 +558,49 @@ el('feed').addEventListener('click',()=>action('f','Feed'));
 el('play').addEventListener('click',()=>action('p','Play'));
 for(const [id,code,label] of [
   ['clean','c','Clean'],['explore','e','Explore'],['peek','b','Peekaboo'],
-  ['startGame','g','Start star game'],['cup1','1','Guess Cup 1'],
-  ['cup2','2','Guess Cup 2'],['cup3','3','Guess Cup 3'],
+
   ['previewToggle','q','Toggle test preview']
 ])el(id).addEventListener('click',()=>action(code,label));
+el('startGame').addEventListener('click',async()=>{
+  if(!connected()||sending)return;
+  localStarUntil=Date.now()+43000;lastStarGuessUntil=0;
+  el('cupButtons').hidden=false;
+  el('gameStatus').textContent='⭐ Find the star! Choose Cup 1, 2 or 3 below.';
+  el('startGame').disabled=true;
+  await action('g','Start star game');
+  if(!connected()){localStarUntil=0;el('cupButtons').hidden=true;}
+});
+for(const n of [1,2,3]){
+  el('cup'+n).addEventListener('click',async()=>{
+    if(!connected()||sending)return;
+    localStarUntil=0;
+    lastStarGuessUntil=Date.now()+8500;
+    el('cupButtons').hidden=true;
+    el('gameStatus').textContent='Guessing Cup '+n+'… watch Sprout reveal the star!';
+    await action(String(n),'Guess Cup '+n);
+  });
+}
+el('boardSound').addEventListener('click',()=>action('v','Test pet speaker'));
+el('phoneSound').addEventListener('click',async()=>{
+  try{
+    const C=window.AudioContext||window.webkitAudioContext;
+    if(!C)throw new Error('AudioContext not available');
+    const ctx=new C();
+    await ctx.resume();
+    const start=ctx.currentTime;
+    for(const [hz,delay] of [[500,0],[820,0.22],[1080,0.44]]){
+      const oscillator=ctx.createOscillator(),gain=ctx.createGain();
+      oscillator.type='sine';oscillator.frequency.value=hz;
+      gain.gain.setValueAtTime(.0001,start+delay);
+      gain.gain.exponentialRampToValueAtTime(.13,start+delay+.025);
+      gain.gain.exponentialRampToValueAtTime(.0001,start+delay+.17);
+      oscillator.connect(gain).connect(ctx.destination);
+      oscillator.start(start+delay);oscillator.stop(start+delay+.19);
+    }
+    el('speakerStatus').textContent='iPhone sound test played locally. Pet speaker is a separate test.';
+    setTimeout(()=>ctx.close().catch(()=>{}),1100);
+  }catch(e){el('speakerStatus').textContent='iPhone sound test failed: '+(e.message||e);}
+});
 el('nap').addEventListener('click',()=>action('z','Nap'));
 el('wake').addEventListener('click',()=>action('w','Wake up'));
 el('refresh').addEventListener('click',()=>readStatus());

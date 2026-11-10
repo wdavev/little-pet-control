@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#10172f">
-<title>My Little Pet • Sprout v0.7.2</title>
+<title>My Little Pet • Sprout v0.8 Learning Center</title>
 <style>
 :root{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#f5f7ff;background:#10172f;font-size:16px}
 *{box-sizing:border-box} body{margin:0;min-height:100vh;background:radial-gradient(circle at 52% 16%,#273963 0,#10172f 65%)}
@@ -64,10 +64,49 @@ button:disabled{opacity:.46;cursor:not-allowed}.connect{width:100%;background:#8
 .growth-notice{background:#233754;border:1px solid #486488;border-radius:13px;padding:12px;line-height:1.5;margin:12px 0;color:#d4e2f2;font-size:.84rem}
 input{min-width:70px;border-radius:9px;border:1px solid #7187a8;background:#111d35;color:#fff;padding:10px;font:inherit}
 [hidden]{display:none!important}
+
+/* Spanish Learning Center: independent of ESP32 firmware */
+.view-tabs{position:sticky;top:0;z-index:12;display:grid;grid-template-columns:1fr 1fr;gap:8px;background:#10172fea;padding:11px 0 9px;backdrop-filter:blur(9px)}
+.view-tabs button{background:#293e60;color:#e3eeff;border:1px solid #536d91;min-height:52px;font-size:.95rem}
+.view-tabs button.selected{background:#9ce8d9;color:#14323c;border-color:#9ce8d9}
+.span-note{font-size:.82rem;line-height:1.5;color:#b8cee4}
+.span-banner{background:#173a40;border:1px solid #427c77;border-radius:15px;padding:12px;margin:12px 0}
+.span-stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:13px 0}
+.span-stat{text-align:center;background:#243553;border:1px solid #405472;border-radius:13px;padding:12px 4px}
+.span-stat strong{display:block;font-size:1.35rem;color:#d6fcf5}
+.span-stat small{display:block;color:#b5c8e3;margin-top:4px;font-size:.7rem}
+.span-lessons{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0}
+.span-lessons button{background:#294469;color:#effaff;border:1px solid #476588;border-radius:13px;min-height:82px;text-align:left;padding:10px;font-size:.82rem}
+.span-lessons button.selected{border-color:#87e4d3;background:#20515a}
+.span-lessons button small{display:block;font-size:.72rem;font-weight:400;margin-top:5px;color:#c0d5e6}
+.span-words{display:flex;gap:7px;overflow-x:auto;padding:5px 0 9px;scroll-snap-type:x proximity}
+.span-words button{flex:0 0 auto;min-height:40px;padding:10px 13px;background:#273c5c;border:1px solid #455f7f;border-radius:12px;color:#e5f2ff;font-size:.84rem;scroll-snap-align:start}
+.span-words button.selected{background:#8ce1d4;color:#162d38}
+.span-word{background:radial-gradient(circle at 50% 0,#2c5874,#253958 65%);border:1px solid #56748b;border-radius:20px;text-align:center;padding:22px 12px;margin:12px 0}
+.span-word .es{font-size:2rem;font-weight:800;color:#e8fff9;line-height:1.2}
+.span-word .en{font-size:1.1rem;color:#e9e5ff;margin-top:12px}
+.span-word .pron{font-size:.86rem;color:#bfd2e6;margin-top:9px}
+.span-word .example{font-size:.86rem;margin-top:14px;color:#d1e9ed}
+.span-controls{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:12px}
+.span-controls button{background:#31537c;color:#fff;min-height:52px;font-size:.86rem}
+.span-controls button.strong{background:#8ce1d4;color:#14323c}
+.span-field{width:100%;margin-top:12px;min-height:48px}
+.span-feedback{min-height:42px;padding-top:10px;font-size:.83rem;color:#d4e5f8;line-height:1.5}
+.span-options{display:grid;gap:8px;margin:12px 0}
+.span-options button{background:#324f75;color:#f6ffff;text-align:left;min-height:49px;font-size:.92rem}
+.span-options button.correct{background:#1d684d}
+.span-options button.incorrect{background:#6c3e50}
+.span-backup{width:100%;min-height:110px;background:#0d2033;border:1px solid #69809e;border-radius:11px;color:#e7efff;resize:vertical;padding:10px;font-size:.76rem;margin-top:12px;font-family:ui-monospace,monospace}
+
 </style>
 </head>
 <body><main>
-<header class="top"><div><h1>🐣 My Little Pet</h1><div class="small">Sprout & friends • Baby care v0.7.2</div></div><div id="badge" class="tag">Not connected</div></header>
+<header class="top"><div><h1>🐣 My Little Pet</h1><div class="small">Sprout & friends • Baby care + Spanish v0.8</div></div><div id="badge" class="tag">Not connected</div></header>
+<nav class="view-tabs" aria-label="Virtual pet sections">
+  <button type="button" id="spanTabPet" class="selected" aria-pressed="true">🐣 My Pet</button>
+  <button type="button" id="spanTabLearn" aria-pressed="false">🇪🇸 Learn Spanish</button>
+</nav>
+<div id="spanPetView">
 <section class="stage" aria-label="Pet portrait matching the ESP32 display">
 <!-- This SVG deliberately follows the ESP32 ST7789 drawPet geometry/colors. -->
 <svg id="petArt" class="pet-svg" viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg" aria-label="Teal Sprout with round ears, eyes, blush and feet" data-mood="Happy">
@@ -138,6 +177,77 @@ input{min-width:70px;border-radius:9px;border:1px solid #7187a8;background:#111d
 <button id="reloadSlots" class="secondary" disabled style="width:100%;margin-top:12px">↻ Refresh save list</button>
 <div id="slotMessage" class="save-notice">Connect to load saved pets.</div>
 </section>
+
+</div>
+<section id="spanView" hidden aria-label="Spanish Learning Center">
+ <section class="panel">
+  <h2>🇪🇸 Learn with your pet</h2>
+  <div class="span-note">Learn the phrases before your pet asks for them. Your progress belongs to the selected pet slot. The ESP32 still handles its usual care and growth.</div>
+  <div class="span-banner">
+   <strong id="spanPetLabel">Studying for Slot 1</strong>
+   <div class="span-note">This first release saves Spanish progress only in this iPhone browser, not on the pet or SD card. Keep an export backup.</div>
+  </div>
+  <div class="span-stats" aria-live="polite">
+   <div class="span-stat"><strong id="spanKnown">0</strong><small>Introduced</small></div>
+   <div class="span-stat"><strong id="spanMastered">0</strong><small>Mastered</small></div>
+   <div class="span-stat"><strong id="spanDue">0</strong><small>Due to review</small></div>
+  </div>
+  <div class="span-note" id="spanStorageNote">Checking browser storage…</div>
+ </section>
+ <section class="panel">
+  <h2>📘 Baby Spanish — 24 essentials</h2>
+  <div class="span-note">Choose a lesson. Hear a word, practice saying or typing it, then quiz yourself. Pronunciation hints are approximate.</div>
+  <div id="spanLessons" class="span-lessons" aria-label="Lessons"></div>
+  <div class="span-note" id="spanLessonBlurb"></div>
+  <div id="spanWordTabs" class="span-words" aria-label="Lesson vocabulary"></div>
+  <div class="span-word">
+   <div class="es" id="spanSpanishWord">Hola</div>
+   <div class="en" id="spanEnglishWord">Hello</div>
+   <div class="pron" id="spanPronounce">OH-lah</div>
+   <div class="example" id="spanExample">Hola, Sprout.</div>
+  </div>
+  <div class="span-controls">
+   <button type="button" id="spanListen" class="strong">🔊 Listen</button>
+   <button type="button" id="spanSlow">🐢 Slowly</button>
+  </div>
+  <label for="spanAnswer" class="span-note" style="display:block;margin-top:16px">Practice recalling the Spanish phrase. Type what you remember:</label>
+  <input id="spanAnswer" class="span-field" type="text" lang="es" inputmode="text" autocomplete="off" autocapitalize="off" placeholder="Type Spanish here">
+  <div class="span-controls">
+   <button type="button" id="spanCheck" class="strong">✓ Check answer</button>
+   <button type="button" id="spanMic">🎙️ Try speaking</button>
+  </div>
+  <div id="spanPracticeFeedback" class="span-feedback" role="status">Listen first, then practice.</div>
+  <button type="button" id="spanUsePet" class="secondary" style="width:100%;margin-top:9px" disabled>🐣 Practice this action with your pet</button>
+  <div class="span-note">Supported phrases can trigger Feed, Play, Nap, or Wake over Bluetooth. This is a button-based practice action; the ESP32 does not yet understand spoken Spanish.</div>
+ </section>
+ <section class="panel">
+  <h2>🧠 Mini-quiz & review</h2>
+  <div class="span-note">Translate the Spanish phrase. Correct answers build memory; mastering a word needs successful practice on at least two different days.</div>
+  <button type="button" class="secondary" id="spanStartQuiz" style="width:100%;margin-top:12px">▶ Quiz current lesson</button>
+  <button type="button" class="secondary" id="spanReviewDue" style="width:100%;margin-top:9px">🔁 Review words due today</button>
+  <div id="spanQuizArea" hidden>
+   <div class="span-word" style="margin-top:14px;padding:16px">
+    <div id="spanQuizSpanish" class="es" style="font-size:1.55rem"></div>
+    <div class="span-pron">What does this mean?</div>
+   </div>
+   <div id="spanQuizOptions" class="span-options"></div>
+   <div id="spanQuizFeedback" class="span-feedback" role="status"></div>
+   <button type="button" class="secondary" id="spanNextQuiz" style="width:100%">Next word →</button>
+  </div>
+ </section>
+ <section class="panel">
+  <h2>📓 Your learning journal</h2>
+  <div class="span-note" id="spanJournal">Start with your first word.</div>
+  <div class="span-note" style="margin-top:12px">Keep an occasional backup. Browser storage may be cleared if the app is reinstalled or website data is deleted.</div>
+  <div class="span-controls">
+   <button type="button" id="spanExport">📋 Make backup</button>
+   <button type="button" id="spanImport">↩ Restore backup</button>
+  </div>
+  <textarea id="spanBackupText" class="span-backup" placeholder="Tap Make backup to copy progress. To restore, paste your previous JSON backup here."></textarea>
+  <div id="spanBackupStatus" class="span-feedback" role="status"></div>
+ </section>
+</section>
+
 <section class="panel"><h2>Bluetooth connection</h2>
 <div class="details">Use this page inside the <b>Bluefy</b> app on your iPhone. Enable Bluetooth, keep your pet powered on and nearby, then press Connect. You do not need to pair in iPhone Settings.</div>
 <button class="connect" id="connect">ᛒ Connect to pet</button><button class="secondary" style="width:100%;margin-top:10px" id="disconnect" disabled>Disconnect</button>
@@ -314,6 +424,7 @@ function onStatus(event){
       const flags=data.getUint8(17);
       const oldSlot=activeSlot;
       activeSlot=slot;
+      if(typeof spanSelectSlot==='function')spanSelectSlot(slot);
       profileProtocol=ver;
       if(ver>=6 && data.byteLength>=20){
         occupiedMask=data.getUint8(18);blockedMask=data.getUint8(19);
@@ -608,5 +719,323 @@ el('reloadSlots').addEventListener('click',()=>refreshProfiles());
 clearValues();buttons();formatAge();
 if(!window.isSecureContext||!navigator.bluetooth)
   message('Open the hosted HTTPS address inside Bluefy, not Safari or a local file.');
+
+/* Spanish Learning Center v0.8. Does not modify ESP32 save data. */
+const SPAN_LESSONS=[
+ {name:'👋 Greetings',note:'Start with hello, thanks, and polite words.',words:[
+ ['Hola','Hello','OH-lah','Hola, Sprout.'],
+ ['Adiós','Goodbye','ah-dee-OHS','Adiós, hasta mañana.'],
+ ['Buenos días','Good morning','BWEH-nohs DEE-ahs','Buenos días, Sprout.'],
+ ['Buenas noches','Good night','BWEH-nahs NOH-chehs','Buenas noches, Sprout.'],
+ ['Gracias','Thank you','GRAH-see-ahs','Gracias por jugar.'],
+ ['Por favor','Please','pohr fah-BOHR','Agua, por favor.']
+ ]},
+ {name:'🍎 Food & water',note:'Understand your pet’s needs and how to help.',words:[
+ ['Agua','Water','AH-gwah','¿Quieres agua?'],
+ ['Comida','Food','koh-MEE-dah','Aquí tienes comida.','f'],
+ ['Tengo hambre',"I'm hungry",'TEHN-goh AHM-breh','Tengo hambre.'],
+ ['Tengo sed',"I'm thirsty",'TEHN-goh SEHD','Tengo sed.'],
+ ['Quiero agua','I want water','KYEH-roh AH-gwah','Quiero agua, por favor.'],
+ ['Aquí tienes','Here you go','ah-KEE TYEH-nehs','Aquí tienes comida.','f']
+ ]},
+ {name:'🎲 Play & feelings',note:'Play with your pet and name simple feelings.',words:[
+ ['Jugar','To play','hoo-GAHR','Me gusta jugar.','p'],
+ ['Vamos a jugar',"Let's play",'BAH-mohs ah hoo-GAHR','¡Vamos a jugar!','p'],
+ ['Sí','Yes','SEE','Sí, vamos.'],
+ ['No','No','NOH','No, gracias.'],
+ ['Feliz','Happy','feh-LEES','Estoy feliz.'],
+ ['Triste','Sad','TREES-teh','Estoy triste.']
+ ]},
+ {name:'🌙 Sleep & care',note:'Talk about resting, washing, and encouragement.',words:[
+ ['Dormir','To sleep','dohr-MEER','Es hora de dormir.','z'],
+ ['Tengo sueño',"I'm sleepy",'TEHN-goh SWEH-nyoh','Tengo sueño.'],
+ ['Descansa','Rest','dehs-KAHN-sah','Descansa, Sprout.','z'],
+ ['Despierta','Wake up','dehs-PYEHR-tah','¡Despierta, Sprout!','w'],
+ ['Baño','Bath','BAH-nyoh','Es hora del baño.','c'],
+ ['Muy bien','Very good','MWEE BYEHN','¡Muy bien, Sprout!']
+ ]}
+];
+const SPAN_WORDS=[];
+SPAN_LESSONS.forEach((lesson,li)=>lesson.words.forEach((w,wi)=>{
+ SPAN_WORDS.push({id:String(li)+'-'+String(wi),lesson:li,es:w[0],en:w[1],hint:w[2],example:w[3],command:w[4]||null});
+}));
+let spanPetSlot=1,spanLesson=0,spanWordId='0-0',spanProgress={version:1,records:{}};
+let spanQuiz=null,spanQuizAnswered=false,spanQuizDueOnly=false,spanSpeech=null,spanStorageOK=true,spanPanel='pet';
+const spanWordById=id=>SPAN_WORDS.find(w=>w.id===id);
+const spanKey=slot=>'sprout-spanish-v1-slot-'+slot;
+const spanNorm=text=>String(text||'').toLocaleLowerCase('es').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[¿?¡!.,;:']/g,'').replace(/\s+/g,' ').trim();
+function spanStorageProbe(){
+ try{
+  const key='sprout-spanish-probe';
+  localStorage.setItem(key,'1');
+  localStorage.removeItem(key);
+  spanStorageOK=true;
+ }catch(e){spanStorageOK=false;}
+ el('spanStorageNote').textContent=spanStorageOK
+  ?'✓ Lessons save in this browser for the selected pet. Use Make backup to keep a copy.'
+  :'⚠ Browser storage is unavailable. You can study, but progress may not survive closing this page.';
+}
+function spanLoad(slot){
+ spanPetSlot=slot;
+ spanProgress={version:1,records:{}};
+ try{
+  const raw=localStorage.getItem(spanKey(slot));
+  if(raw){
+   const data=JSON.parse(raw);
+   if(data&&data.version===1&&data.records&&typeof data.records==='object')spanProgress=data;
+  }
+  localStorage.setItem('sprout-spanish-last-slot',String(slot));
+ }catch(e){spanStorageOK=false;}
+ spanRender();
+}
+function spanSave(){
+ try{localStorage.setItem(spanKey(spanPetSlot),JSON.stringify(spanProgress));}
+ catch(e){
+  spanStorageOK=false;
+  el('spanStorageNote').textContent='⚠ Could not save progress. Use Make backup and copy the journal text.';
+ }
+}
+function spanSelectSlot(slot){
+ if(!Number.isInteger(slot)||slot<1||slot>4||slot===spanPetSlot)return;
+ spanLoad(slot);
+}
+function spanRecord(id){
+ if(!spanProgress.records[id])spanProgress.records[id]={correct:0,wrong:0,days:[],due:0,last:0,uses:0};
+ return spanProgress.records[id];
+}
+const spanDay=when=>new Date(when).toISOString().slice(0,10);
+function spanMark(id,correct){
+ const rec=spanRecord(id),now=Date.now();
+ rec.last=now;
+ if(correct){
+  rec.correct=Math.min(9999,(rec.correct||0)+1);
+  const today=spanDay(now);
+  if(!Array.isArray(rec.days))rec.days=[];
+  if(!rec.days.includes(today))rec.days.push(today);
+  rec.days=rec.days.slice(-100);
+  const hours=(rec.correct>=3?72:rec.correct>=2?24:6);
+  rec.due=now+hours*3600000;
+ }else{
+  rec.wrong=Math.min(9999,(rec.wrong||0)+1);
+  rec.due=now;
+ }
+ spanSave();
+ spanRenderStats();
+}
+function spanMastered(rec){return !!rec && rec.correct>=3 && Array.isArray(rec.days) && rec.days.length>=2;}
+function spanIsDue(w){const r=spanProgress.records[w.id];return !!r&&r.correct>0&&r.due<=Date.now();}
+function spanRenderStats(){
+ const records=SPAN_WORDS.map(w=>spanProgress.records[w.id]).filter(Boolean);
+ el('spanKnown').textContent=records.filter(r=>r.correct>0).length;
+ el('spanMastered').textContent=records.filter(spanMastered).length;
+ const due=SPAN_WORDS.filter(spanIsDue).length;
+ el('spanDue').textContent=due;
+ const label=slots[spanPetSlot-1]?.name||('Slot '+spanPetSlot);
+ el('spanPetLabel').textContent='Studying for '+label+' (Slot '+spanPetSlot+')';
+ const worked=records.filter(r=>r.correct>0).length;
+ const mastered=records.filter(spanMastered).length;
+ el('spanJournal').textContent=worked+' of 24 words introduced; '+mastered+' mastered across multiple days; '+due+' ready to review. Your learning progress is separate from the pet’s growth milestones in this firmware.';
+}
+function spanRenderLessons(){
+ const root=el('spanLessons');root.replaceChildren();
+ SPAN_LESSONS.forEach((l,i)=>{
+  const b=document.createElement('button');b.type='button';b.className=i===spanLesson?'selected':'';
+  const total=l.words.length;
+  const done=SPAN_WORDS.filter(w=>w.lesson===i&&spanProgress.records[w.id]?.correct>0).length;
+  b.textContent=l.name;
+  const small=document.createElement('small');small.textContent=done+'/'+total+' words started';
+  b.append(small);
+  b.addEventListener('click',()=>{spanLesson=i;spanWordId=String(i)+'-0';spanRender();});
+  root.append(b);
+ });
+ el('spanLessonBlurb').textContent=SPAN_LESSONS[spanLesson].note;
+ const tabs=el('spanWordTabs');tabs.replaceChildren();
+ SPAN_WORDS.filter(w=>w.lesson===spanLesson).forEach(w=>{
+  const btn=document.createElement('button');btn.type='button';
+  btn.className=w.id===spanWordId?'selected':'';
+  const rec=spanProgress.records[w.id];
+  btn.textContent=(spanMastered(rec)?'✓ ':rec?.correct>0?'• ':'')+w.es;
+  btn.addEventListener('click',()=>{spanWordId=w.id;spanRender();});
+  tabs.append(btn);
+ });
+}
+function spanRenderWord(){
+ const word=spanWordById(spanWordId)||SPAN_WORDS[0];
+ el('spanSpanishWord').textContent=word.es;
+ el('spanEnglishWord').textContent=word.en;
+ el('spanPronounce').textContent='Approx. pronunciation: '+word.hint;
+ el('spanExample').textContent='Example: '+word.example;
+ el('spanAnswer').value='';
+ el('spanPracticeFeedback').textContent='Listen, then practice saying or typing the Spanish.';
+ el('spanUsePet').disabled=!word.command||!connected()||sending;
+ el('spanUsePet').textContent=word.command?'🐣 Use “'+word.es+'” with your pet':'🐣 Pet action coming in a later update';
+}
+function spanRender(){
+ spanRenderStats();spanRenderLessons();spanRenderWord();
+}
+function spanSwitch(tab){
+ spanPanel=tab;
+ el('spanPetView').hidden=tab!=='pet';
+ el('spanView').hidden=tab!=='learn';
+ el('spanTabPet').classList.toggle('selected',tab==='pet');
+ el('spanTabLearn').classList.toggle('selected',tab==='learn');
+ el('spanTabPet').setAttribute('aria-pressed',String(tab==='pet'));
+ el('spanTabLearn').setAttribute('aria-pressed',String(tab==='learn'));
+ if(tab==='learn')spanRender();
+ window.scrollTo(0,0);
+}
+function spanSpeak(text,slow=false){
+ const feedback=el('spanPracticeFeedback');
+ if(!('speechSynthesis' in window) || typeof SpeechSynthesisUtterance!=='function'){
+  feedback.textContent='Spoken playback is unavailable in this browser. Use the written pronunciation hint.';
+  return;
+ }
+ try{
+  speechSynthesis.cancel();
+  const utterance=new SpeechSynthesisUtterance(text);
+  utterance.lang='es-ES';utterance.rate=slow?0.7:0.88;utterance.pitch=1;
+  const voices=speechSynthesis.getVoices();
+  const spanish=voices.find(v=>String(v.lang).toLowerCase().startsWith('es'));
+  if(spanish)utterance.voice=spanish;
+  utterance.onerror=()=>{feedback.textContent='Audio playback failed. Try again or use the pronunciation hint.';};
+  speechSynthesis.speak(utterance);
+  feedback.textContent='Playing Spanish on your iPhone (if the browser allows audio).';
+ }catch(e){feedback.textContent='Audio unavailable: '+(e.message||e);}
+}
+function spanCheckTyped(answer,source){
+ const word=spanWordById(spanWordId);
+ const phrase=spanNorm(answer),expected=spanNorm(word.es);
+ if(!phrase){el('spanPracticeFeedback').textContent='Enter your Spanish answer first.';return;}
+ // Speech-to-text is a phrase match, not a pronunciation quality score.
+ const correct=phrase===expected || (source==='voice'&&expected.length>5&&phrase.includes(expected));
+ spanMark(word.id,correct);
+ el('spanPracticeFeedback').textContent=correct
+  ?'✓ The words match! '+(source==='voice'?'Speech recognition matched the phrase; pronunciation quality was not scored.':'Good recall. Come back another day to strengthen your memory.')
+  :'Not quite. The target phrase is “'+word.es+'”. Listen and try again.';
+ spanRenderLessons();
+}
+function spanListenMic(){
+ const R=window.SpeechRecognition||window.webkitSpeechRecognition;
+ if(!R){
+  el('spanPracticeFeedback').textContent='Microphone speech recognition is not supported in this browser. Use typing practice, or listen and repeat aloud.';
+  return;
+ }
+ try{
+  if(spanSpeech){try{spanSpeech.abort();}catch(e){}}
+  const instance=new R();spanSpeech=instance;
+  instance.lang='es-ES';instance.interimResults=false;instance.maxAlternatives=1;instance.continuous=false;
+  el('spanMic').disabled=true;
+  el('spanPracticeFeedback').textContent='Listening in Spanish… speak the displayed phrase.';
+  instance.onresult=evt=>{
+   const heard=evt.results?.[0]?.[0]?.transcript||'';
+   el('spanAnswer').value=heard;
+   spanCheckTyped(heard,'voice');
+  };
+  instance.onerror=evt=>{el('spanPracticeFeedback').textContent='Speech recognition unavailable: '+(evt.error||'unknown error')+'. Use typing practice.';};
+  instance.onend=()=>{spanSpeech=null;el('spanMic').disabled=false;};
+  instance.start();
+ }catch(e){spanSpeech=null;el('spanMic').disabled=false;el('spanPracticeFeedback').textContent='Cannot start microphone: '+(e.message||e)+'. Type your answer instead.';}
+}
+function spanChooseQuiz(dueOnly=false){
+ let candidates=SPAN_WORDS.filter(w=>dueOnly?spanIsDue(w):w.lesson===spanLesson);
+ if(dueOnly&&candidates.length===0){
+  el('spanQuizArea').hidden=false;
+  el('spanQuizSpanish').textContent='All caught up!';
+  el('spanQuizOptions').replaceChildren();
+  el('spanQuizFeedback').textContent='No words are due right now. Try a lesson quiz, or come back tomorrow.';
+  el('spanNextQuiz').disabled=true;
+  return;
+ }
+ if(!candidates.length)candidates=SPAN_WORDS;
+ const untouched=candidates.filter(w=>!spanProgress.records[w.id]?.correct);
+ const list=untouched.length&&!dueOnly?untouched:candidates;
+ const word=list[Math.floor(Math.random()*list.length)];
+ spanQuiz=word;spanQuizAnswered=false;spanQuizDueOnly=dueOnly;
+ el('spanQuizArea').hidden=false;el('spanQuizSpanish').textContent=word.es;
+ el('spanQuizFeedback').textContent='Choose the correct English meaning.';
+ el('spanNextQuiz').disabled=true;
+ const wrong=SPAN_WORDS.filter(w=>w.id!==word.id&&w.en!==word.en);
+ // Shuffle choices without repeating the correct meaning.
+ for(let i=wrong.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[wrong[i],wrong[j]]=[wrong[j],wrong[i]];}
+ const options=[word,...wrong.slice(0,2)];
+ for(let i=options.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[options[i],options[j]]=[options[j],options[i]];}
+ const root=el('spanQuizOptions');root.replaceChildren();
+ options.forEach(opt=>{
+  const b=document.createElement('button');b.type='button';b.textContent=opt.en;
+  b.addEventListener('click',()=>spanQuizAnswer(opt.id===word.id,b,root));
+  root.append(b);
+ });
+}
+function spanQuizAnswer(correct,button,root){
+ if(!spanQuiz||spanQuizAnswered)return;
+ spanQuizAnswered=true;spanMark(spanQuiz.id,correct);
+ for(const btn of root.querySelectorAll('button')){
+  btn.disabled=true;
+  if(btn.textContent===spanQuiz.en)btn.classList.add('correct');
+ }
+ if(!correct)button.classList.add('incorrect');
+ el('spanQuizFeedback').textContent=correct?'✓ Correct! '+spanQuiz.es+' means '+spanQuiz.en+'.'
+  :'Try again in review. '+spanQuiz.es+' means '+spanQuiz.en+'.';
+ el('spanNextQuiz').disabled=false;
+ spanRenderLessons();
+}
+function spanBackupExport(){
+ const record={version:1,slot:spanPetSlot,exportedAt:new Date().toISOString(),records:spanProgress.records};
+ const raw=JSON.stringify(record,null,2);
+ el('spanBackupText').value=raw;
+ el('spanBackupText').focus();el('spanBackupText').select();
+ const copy=()=>navigator.clipboard&&navigator.clipboard.writeText?navigator.clipboard.writeText(raw):Promise.reject();
+ copy().then(()=>{
+  el('spanBackupStatus').textContent='Backup copied. Paste into Notes or a secure file, and keep it.';
+ }).catch(()=>{el('spanBackupStatus').textContent='Select all and copy the JSON above into Notes or a file. No cloud backup has been created.';});
+}
+function spanBackupImport(){
+ try{
+  const data=JSON.parse(el('spanBackupText').value);
+  if(data.version!==1||data.slot!==spanPetSlot||!data.records||typeof data.records!=='object'||Array.isArray(data.records))throw new Error('Backup must match this selected slot and format.');
+  const checked={};
+  for(const [id,val] of Object.entries(data.records)){
+   if(!spanWordById(id)||!val||typeof val!=='object')continue;
+   checked[id]={
+    correct:Math.max(0,Math.min(9999,Math.trunc(Number(val.correct)||0))),
+    wrong:Math.max(0,Math.min(9999,Math.trunc(Number(val.wrong)||0))),
+    due:Math.max(0,Number(val.due)||0),
+    last:Math.max(0,Number(val.last)||0),
+    days:Array.isArray(val.days)?val.days.filter(x=>typeof x==='string'&&/^\d{4}-\d\d-\d\d$/.test(x)).slice(-100):[],
+    uses:Math.max(0,Math.min(9999,Math.trunc(Number(val.uses)||0)))
+   };
+  }
+  if(!confirm('Replace the Spanish learning journal for Slot '+spanPetSlot+' with this backup? The pet’s onboard save is not affected.'))return;
+  spanProgress={version:1,records:checked};spanSave();spanRender();
+  el('spanBackupStatus').textContent='Spanish journal restored for Slot '+spanPetSlot+'.';
+ }catch(e){el('spanBackupStatus').textContent='Restore failed: '+(e.message||e);}
+}
+el('spanTabPet').addEventListener('click',()=>spanSwitch('pet'));
+el('spanTabLearn').addEventListener('click',()=>spanSwitch('learn'));
+el('spanListen').addEventListener('click',()=>spanSpeak(spanWordById(spanWordId).es));
+el('spanSlow').addEventListener('click',()=>spanSpeak(spanWordById(spanWordId).es,true));
+el('spanCheck').addEventListener('click',()=>spanCheckTyped(el('spanAnswer').value,'typed'));
+el('spanAnswer').addEventListener('keydown',e=>{if(e.key==='Enter')spanCheckTyped(el('spanAnswer').value,'typed');});
+el('spanMic').addEventListener('click',spanListenMic);
+el('spanUsePet').addEventListener('click',async()=>{
+ const w=spanWordById(spanWordId);
+ if(!w.command)return;
+ if(!connected()){el('spanPracticeFeedback').textContent='Connect your pet using the Bluetooth section below first.';return;}
+ el('spanPracticeFeedback').textContent='Sending '+w.es+' as a pet action. The board does not yet recognize spoken Spanish.';
+ await action(w.command,'Spanish practice: '+w.es);
+ // Do not award vocabulary mastery merely for pressing an action button.
+});
+el('spanStartQuiz').addEventListener('click',()=>spanChooseQuiz(false));
+el('spanReviewDue').addEventListener('click',()=>spanChooseQuiz(true));
+el('spanNextQuiz').addEventListener('click',()=>spanChooseQuiz(spanQuizDueOnly));
+el('spanExport').addEventListener('click',spanBackupExport);
+el('spanImport').addEventListener('click',spanBackupImport);
+spanStorageProbe();
+let spanRememberedSlot=1;
+try{spanRememberedSlot=Number(localStorage.getItem('sprout-spanish-last-slot'))||1;}catch(e){}
+spanLoad(spanRememberedSlot>=1&&spanRememberedSlot<=4?spanRememberedSlot:1);
+el('spanMic').disabled=!(window.SpeechRecognition||window.webkitSpeechRecognition);
+el('spanMic').title=el('spanMic').disabled?'Speech recognition is unavailable in this browser; typing works.':'Try the current phrase with your microphone.';
+
 </script>
 </body></html>

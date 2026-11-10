@@ -1,0 +1,612 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#10172f">
+<title>My Little Pet • Sprout v0.7.2</title>
+<style>
+:root{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#f5f7ff;background:#10172f;font-size:16px}
+*{box-sizing:border-box} body{margin:0;min-height:100vh;background:radial-gradient(circle at 52% 16%,#273963 0,#10172f 65%)}
+main{max-width:500px;margin:auto;padding:calc(20px + env(safe-area-inset-top)) 18px calc(22px + env(safe-area-inset-bottom))}
+h1{font-size:1.45rem;margin:0;font-weight:800;letter-spacing:.2px}.top{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.small{font-size:.81rem;color:#afc1db}.tag{border:1px solid #435574;background:#202e49;color:#bad3ee;border-radius:15px;padding:7px 10px;font-size:.73rem;white-space:nowrap}
+.tag.live{background:#123e36;border-color:#2e8c70;color:#96f1cb}
+.stage{position:relative;background:radial-gradient(circle at 50% 48%,#2e5774 0,#1c2b4e 75%);height:260px;border:1px solid #4b6482;border-radius:24px;overflow:hidden;margin:19px 0 16px;display:grid;place-items:center;box-shadow:inset 0 15px 45px #0c14263d}
+.stage:before{content:'✦';position:absolute;top:31px;left:31px;color:#80aeca;font-size:20px}.stage:after{content:'✦';position:absolute;top:70px;right:39px;color:#80aeca;font-size:16px}
+.pet-svg{width:240px;height:240px;max-width:96%;max-height:91%;animation:bob 3.2s ease-in-out infinite;filter:drop-shadow(0 9px 3px #0b102452)}
+.pet-svg .pupil{animation:look 4s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+.pet-svg .open-eyes{animation:eyeblink 5.4s ease-in-out infinite;transform-origin:center 118px}
+.pet-svg[data-mood="Sleepy"] .open-eyes{display:none}
+.pet-svg[data-mood="Sleepy"] .sleep-eyes{display:block}
+.pet-svg .sleep-eyes{display:none}
+.pet-svg[data-mood="Hungry"] .smile{display:none}
+.pet-svg[data-mood="Sleepy"] .smile{display:none}
+.pet-svg[data-mood="Curious"] .smile{display:none}
+.pet-svg .mouth-o{display:none}
+.pet-svg[data-mood="Curious"] .mouth-o,.pet-svg[data-mood="Eating"] .mouth-o{display:block}
+.pet-svg[data-mood="Eating"] .smile{display:none}
+@keyframes bob{0%,100%{transform:translateY(2px)}50%{transform:translateY(-4px)}}
+@keyframes eyeblink{0%,91%,94%,100%{transform:scaleY(1)}92%,93%{transform:scaleY(.09)}}
+@keyframes look{0%,30%,100%{transform:translateX(0)}50%{transform:translateX(5px)}70%{transform:translateX(-3px)}}
+.stage .caption{position:absolute;bottom:12px;font-size:.78rem;color:#d1deec}
+.panel{background:#1a2540;border:1px solid #394764;border-radius:20px;padding:18px;margin:14px 0;box-shadow:0 12px 35px #0b0c1f35}
+.panel h2{margin:0 0 16px;font-size:1rem}.stat{margin:12px 0}.stathead{display:flex;justify-content:space-between;font-size:.87rem;margin-bottom:7px}.stathead span:last-child{color:#cfddf8;font-variant-numeric:tabular-nums}
+.track{height:11px;background:#34405b;border-radius:7px;overflow:hidden}.fill{height:100%;width:0%;border-radius:7px;transition:width .3s ease}.food{background:#ffc66d}.fun{background:#af92ff}.energy{background:#76b9f7}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:13px}button{font:inherit;border:none;border-radius:16px;padding:14px 10px;min-height:53px;font-weight:750;cursor:pointer;-webkit-tap-highlight-color:transparent}
+button:disabled{opacity:.46;cursor:not-allowed}.connect{width:100%;background:#8ff1d6;color:#10273c;margin-top:10px}.secondary{background:#2d4267;color:#e6eaff}.feed{background:#ffc66d;color:#342513}.play{background:#b9a7ff;color:#211d46}
+.save-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.save-item{border:1px solid #405273;background:#202f4e;padding:12px;border-radius:12px}
+.save-key{font-size:.73rem;color:#b6c7de;margin-bottom:5px}
+.save-value{font-size:.98rem;font-weight:750;color:#edf6ff}
+.save-notice{margin-top:13px;font-size:.81rem;line-height:1.5;color:#b4c9df}
+.status{padding:12px 0 0;font-size:.84rem;color:#d8e8f4;min-height:40px;line-height:1.4}.details{font-size:.79rem;color:#a7b9d4;line-height:1.5}.footer{text-align:center;color:#8499b9;font-size:.75rem;margin-top:19px}
+
+.slots{display:grid;gap:11px;margin-top:14px}
+.slot-card{border:1px solid #405273;border-radius:14px;padding:13px;background:#202f4e;display:grid;gap:8px}
+.slot-card.active{border-color:#8ff1d6;background:#1a3a40}
+.slot-card.protected{border-color:#cf9d54}
+.slot-top{display:flex;justify-content:space-between;align-items:start;gap:10px}
+.slot-title{font-weight:780}.slot-sub{font-size:.79rem;color:#b6c8df;line-height:1.3}
+.slot-entry{display:flex;gap:8px}
+.slot-entry input{flex:1;min-width:70px;border-radius:9px;border:1px solid #7187a8;background:#111d35;color:#fff;padding:10px;font:inherit}
+.slot-entry button{font-size:.85rem;padding:10px 14px;min-height:44px}
+.slot-card>button{font-size:.88rem;min-height:44px;padding:10px}
+
+.care-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:12px 0}
+.care-grid button{background:#29466a;color:#edf6ff}
+.game-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:12px 0}
+.game-grid button{background:#8ce1d4;color:#12333c;font-size:.98rem;min-height:100px;border-radius:16px;box-shadow:inset 0 -6px #409f9d;}
+.game-grid button:active{transform:translateY(2px);box-shadow:inset 0 -3px #409f9d}
+.game-status{margin:8px 0;color:#d7e7ff;min-height:42px}
+.audio-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:20px}
+.audio-actions button{background:#34517b;color:#fff;font-size:.88rem;min-height:56px}
+.growth-notice{background:#233754;border:1px solid #486488;border-radius:13px;padding:12px;line-height:1.5;margin:12px 0;color:#d4e2f2;font-size:.84rem}
+input{min-width:70px;border-radius:9px;border:1px solid #7187a8;background:#111d35;color:#fff;padding:10px;font:inherit}
+[hidden]{display:none!important}
+</style>
+</head>
+<body><main>
+<header class="top"><div><h1>🐣 My Little Pet</h1><div class="small">Sprout & friends • Baby care v0.7.2</div></div><div id="badge" class="tag">Not connected</div></header>
+<section class="stage" aria-label="Pet portrait matching the ESP32 display">
+<!-- This SVG deliberately follows the ESP32 ST7789 drawPet geometry/colors. -->
+<svg id="petArt" class="pet-svg" viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg" aria-label="Teal Sprout with round ears, eyes, blush and feet" data-mood="Happy">
+ <circle cx="18" cy="66" r="2" fill="#78a4cf"/><circle cx="219" cy="74" r="2" fill="#78a4cf"/>
+ <circle cx="62" cy="57" r="19" fill="#238797"/><circle cx="176" cy="57" r="19" fill="#238797"/>
+ <rect x="53" y="183" width="40" height="25" rx="12" fill="#238797"/>
+ <rect x="149" y="183" width="40" height="25" rx="12" fill="#238797"/>
+ <rect x="22" y="51" width="196" height="149" rx="69" fill="#238797"/>
+ <rect x="27" y="51" width="186" height="140" rx="66" fill="#56ddd6"/>
+ <circle cx="80" cy="80" r="14" fill="#93f6e8"/>
+ <g class="open-eyes"><circle cx="85" cy="116" r="23" fill="#fffdf2"/>
+ <circle cx="155" cy="116" r="23" fill="#fffdf2"/>
+ <g class="pupil"><circle cx="85" cy="118" r="11" fill="#182a45"/><circle cx="155" cy="118" r="11" fill="#182a45"/>
+ <circle cx="81" cy="111" r="4" fill="#fffdf2"/><circle cx="151" cy="111" r="4" fill="#fffdf2"/></g></g>
+ <g class="sleep-eyes"><rect x="65" y="116" width="43" height="5" rx="2" fill="#182a45"/>
+ <rect x="133" y="116" width="43" height="5" rx="2" fill="#182a45"/></g>
+ <circle cx="55" cy="151" r="10" fill="#fd96ab"/><circle cx="186" cy="151" r="10" fill="#fd96ab"/>
+ <polyline class="smile" points="101,154 109,161 120,165 131,161 139,154" stroke="#234a5a" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+ <circle class="mouth-o" cx="120" cy="159" r="8" fill="#234a5a"/>
+</svg><div id="petMood" class="caption">Waiting to meet you!</div></section>
+<section class="panel"><h2>Pet status</h2><div class="details" id="syncAge">Waiting for a fresh reading from the board.</div>
+<div class="stat"><div class="stathead"><span>🍎 Food</span><span id="foodValue">—</span></div><div class="track"><div class="fill food" id="foodBar"></div></div></div>
+<div class="stat"><div class="stathead"><span>🎮 Fun</span><span id="funValue">—</span></div><div class="track"><div class="fill fun" id="funBar"></div></div></div>
+<div class="stat"><div class="stathead"><span>🌙 Energy</span><span id="energyValue">—</span></div><div class="track"><div class="fill energy" id="energyBar"></div></div></div>
+<div class="actions"><button class="feed" id="feed" disabled>🍎 Feed</button><button class="play" id="play" disabled>🎲 Play</button></div><button class="secondary" style="width:100%;margin-top:12px" id="refresh" disabled>↻ Refresh stats from pet</button><div class="details" id="lastAction" style="margin-top:10px">Last action: none</div></section>
+<section class="panel" id="carePanel" hidden>
+<h2>🍼 Baby care & play</h2>
+<div class="details">Sprout can explore, learn to play, get dirty and take naps. Every activity affects its personality and helps build your bond.</div>
+<div class="stat"><div class="stathead"><span>🧽 Cleanliness</span><span id="cleanValue">—</span></div><div class="track"><div class="fill energy" id="cleanBar"></div></div></div>
+<div class="care-grid">
+ <button id="clean" disabled>🧼 Clean</button><button id="explore" disabled>🔎 Explore</button>
+ <button id="peek" disabled>👀 Peekaboo</button><button id="nap" disabled>💤 Nap</button>
+ <button id="wake" disabled>☀️ Wake up</button>
+</div><div class="details" id="sleepStatus">Sleep controls are always available when connected.</div><div class="details" id="activityCount">Explorations: — · Star wins: — · Peekaboo: —</div>
+<h2 style="margin-top:22px">⭐ Find the star</h2>
+<div class="details">Sprout hides a star behind one of three cups. Pick a cup to guess where it is!</div>
+<button class="secondary" id="startGame" style="width:100%;margin-top:10px" disabled>⭐ Start mini-game</button>
+<div id="cupButtons" class="game-grid" hidden>
+<button id="cup1" disabled>🥤<div>Cup 1</div></button><button id="cup2" disabled>🥤<div>Cup 2</div></button><button id="cup3" disabled>🥤<div>Cup 3</div></button>
+</div><div id="gameStatus" class="game-status">Start a game to play together.</div>
+<div class="audio-actions"><button id="boardSound" disabled>🔊 Test pet speaker</button><button id="phoneSound">📱 Test iPhone sound</button></div>
+<div id="speakerStatus" class="details">Pet speaker test will play through the ESP32, not your phone.</div>
+</section>
+<section class="panel" aria-label="Persistent pet profile">
+<h2>🌱 Growth & memory</h2>
+<div class="details" id="profileNote">Connect the pet running v0.5 firmware to see its saved profile.</div>
+<div class="save-grid">
+ <div class="save-item"><div class="save-key">Current save</div><div class="save-value" id="slotValue">—</div></div>
+ <div class="save-item"><div class="save-key">Growth stage</div><div class="save-value" id="stageValue">—</div></div>
+ <div class="save-item"><div class="save-key">Personality</div><div class="save-value" id="personalityValue">—</div></div>
+ <div class="save-item"><div class="save-key">Real-world age</div><div class="save-value" id="ageValue">—</div></div>
+ <div class="save-item"><div class="save-key">Bond</div><div class="save-value" id="bondValue">—</div></div>
+ <div class="save-item"><div class="save-key">Interactions</div><div class="save-value" id="interactionValue">—</div></div>
+</div>
+<div class="save-notice" id="saveValue">Save status: waiting for the pet.</div>
+<div class="growth-notice" id="growthCountdown">Baby → Child takes 24 real-world hours and 6 interactions. Next stages take 3 and 6 days total, with more care milestones. Previously earned stages never go backward.</div>
+<div class="details">Your phone provides the calendar time over Bluetooth. The board remembers your pet's original progress even when disconnected; after a power-off, reconnect to update real-world age.</div>
+<div class="growth-notice" id="previewPanel" hidden>
+<b>🧪 Testing preview</b><br>Preview advances 1 day per minute. <b>It does not age, evolve, or overwrite your actual pet.</b>
+<div id="previewText">Not in preview mode.</div>
+<button id="previewToggle" class="secondary" disabled style="width:100%;margin-top:10px">Start test preview</button>
+</div>
+</section>
+<section class="panel" id="managerPanel" hidden>
+<h2>📂 Saved pets</h2>
+<div class="details">Rename the current pet, switch to another save, or create a pet in an empty slot. Nothing here deletes or overwrites an existing pet.</div>
+<div id="slots" class="slots" aria-live="polite"></div>
+<button id="reloadSlots" class="secondary" disabled style="width:100%;margin-top:12px">↻ Refresh save list</button>
+<div id="slotMessage" class="save-notice">Connect to load saved pets.</div>
+</section>
+<section class="panel"><h2>Bluetooth connection</h2>
+<div class="details">Use this page inside the <b>Bluefy</b> app on your iPhone. Enable Bluetooth, keep your pet powered on and nearby, then press Connect. You do not need to pair in iPhone Settings.</div>
+<button class="connect" id="connect">ᛒ Connect to pet</button><button class="secondary" style="width:100%;margin-top:10px" id="disconnect" disabled>Disconnect</button>
+<div role="status" aria-live="polite" class="status" id="status">Ready to connect.</div></section>
+<div class="footer">Your pets and care progress are stored in internal flash. The 32GB SD card and Gemini conversations come later. Only your local pet receives Bluetooth commands; no API key is present in this page.</div>
+</main>
+<script>
+'use strict';
+// Must match the UUIDs in the ESP32 firmware. No Gemini credentials are here.
+const SERVICE='746a5f13-dc18-4db8-ace5-a490b9dd5610';
+const COMMAND='746a5f14-dc18-4db8-ace5-a490b9dd5610';
+const STATUS='746a5f15-dc18-4db8-ace5-a490b9dd5610';
+const DETAIL='746a5f1a-dc18-4db8-ace5-a490b9dd5610';
+const SLOT_UUIDS=[
+  '746a5f16-dc18-4db8-ace5-a490b9dd5610',
+  '746a5f17-dc18-4db8-ace5-a490b9dd5610',
+  '746a5f18-dc18-4db8-ace5-a490b9dd5610',
+  '746a5f19-dc18-4db8-ace5-a490b9dd5610',
+];
+const moods=['Happy','Hungry','Sleepy','Curious','Eating','Playing'];
+const stages=['Baby','Child','Teen','Adult'];
+const personalities=['Balanced','Playful','Affectionate','Curious'];
+const el=id=>document.getElementById(id);
+let device=null,commandChar=null,statusChar=null,detailChar=null,poll=null,sending=false;
+let lastUpdate=0,lastSequence=null,pending=null,hasAckProtocol=false;
+let gattTail=Promise.resolve();
+let countSent=0,countAck=0;
+let profileProtocol=0,activeSlot=1,slots=new Array(4).fill(null);
+let profilesChars=[],profilesService=null,refreshingProfiles=false,occupiedMask=0,blockedMask=0;
+let detail={preview:0,previewStage:0,ageHours:0,previewHours:0,sleeping:false,gameActive:false};
+let localStarUntil=0, lastStarGuessUntil=0;
+let lastAgeMinutes=0,lastStage=0,lastInteractions=0;
+
+
+function message(value){el('status').textContent=value;}
+function connected(){return !!(device&&device.gatt&&device.gatt.connected&&commandChar);}
+function buttons(){
+  const active=connected();
+  el('feed').disabled=!active||sending;
+  el('play').disabled=!active||sending;
+  el('refresh').disabled=!active||sending;
+  el('disconnect').disabled=!active;
+  el('connect').disabled=active||sending;
+  el('reloadSlots').disabled=!active||sending||profileProtocol<6;
+  for(const id of ['clean','explore','peek','nap','wake','startGame','cup1','cup2','cup3','boardSound','previewToggle'])
+    el(id).disabled=!active||sending||profileProtocol<7;
+  el('nap').textContent='💤 Nap';
+  for(const btn of el('slots').querySelectorAll('button'))btn.disabled=!active||sending;
+  el('badge').textContent=active?'Connected':'Not connected';
+  el('badge').className=active?'tag live':'tag';
+}
+function clearValues(){
+  for(const name of ['food','fun','energy']){
+    el(name+'Value').textContent='—';el(name+'Bar').style.width='0%';
+  }
+  el('petMood').textContent='Waiting to meet you!';
+  el('lastAction').textContent='Last action: none';
+  for(const name of ['slot','stage','personality','age','bond','interaction'])
+    el(name+'Value').textContent='—';
+  el('profileNote').textContent='Connect your pet to read its memories and progress.';
+  el('saveValue').textContent='Save status: waiting for the pet.';
+  lastUpdate=0;lastSequence=null;pending=null;hasAckProtocol=false;
+  profileProtocol=0;activeSlot=1;slots=new Array(4).fill(null);
+  profilesChars=[];profilesService=null;refreshingProfiles=false;occupiedMask=0;blockedMask=0;
+  detailChar=null;detail={preview:0,previewStage:0,ageHours:0,previewHours:0,sleeping:false,gameActive:false};
+  el('carePanel').hidden=true;el('previewPanel').hidden=true;
+  el('petArt').dataset.mood='Happy';el('cleanValue').textContent='—';el('cleanBar').style.width='0%';
+  el('activityCount').textContent='Explorations: — · Star wins: — · Peekaboo: —';
+  el('sleepStatus').textContent='Activity readings pending; Wake works even without them.';
+  el('cupButtons').hidden=true;el('gameStatus').textContent='Start a game to play together.';
+  el('managerPanel').hidden=true;el('slots').replaceChildren();
+  el('slotMessage').textContent='Connect to load saved pets.';
+}
+function formatAge(){
+  if(!connected()){el('syncAge').textContent='Not connected to the board.';return;}
+  if(!lastUpdate){el('syncAge').textContent='Connected, waiting for board stats…';return;}
+  const seconds=Math.floor((Date.now()-lastUpdate)/1000);
+  el('syncAge').textContent=seconds>=8
+    ?`⚠ Stats ${seconds}s old — tap Refresh stats.`
+    :`Live board reading • updated ${seconds}s ago`;
+}
+function showValue(id,value){
+  el(id+'Value').textContent=value+' / 100';
+  el(id+'Bar').style.width=Math.max(0,Math.min(value,100))+'%';
+}
+function showGrowthProgress(minutes,stage,interactions){
+  const milestones=[{mins:1440,actions:6,name:'Child',explores:1,wins:1,peeks:1},
+    {mins:4320,actions:20,name:'Teen',explores:3,wins:2,peeks:3},
+    {mins:8640,actions:45,name:'Adult',explores:8,wins:5,peeks:6}];
+  const target=milestones[stage];
+  if(!target){el('growthCountdown').textContent='Fully grown! Keep playing and building your bond.';return;}
+  const wait=Math.max(0,target.mins-minutes);
+  const acts=Math.max(0,target.actions-interactions);
+  const needed=detail.explorations===undefined?'Connect for task goals':
+    `Tasks left: Explore ${Math.max(0,target.explores-detail.explorations)}, `+
+    `Star wins ${Math.max(0,target.wins-detail.wins)}, `+
+    `Peekaboo ${Math.max(0,target.peeks-detail.peeks)}; cleanliness at least 40.`;
+  el('growthCountdown').textContent=`Next: ${target.name}. ${wait?formatMinutes(wait)+' real-world time remaining':'Time milestone reached'}; ${acts} more care interactions. ${needed} Earlier stages never regress.`;
+}
+function updateDetailView(){
+  el('cleanValue').textContent=detail.hygiene+' / 100';
+  el('cleanBar').style.width=detail.hygiene+'%';
+  el('activityCount').textContent=`Explorations: ${detail.explorations} · Star wins: ${detail.wins} · Peekaboo: ${detail.peeks}`;
+  el('sleepStatus').textContent=detail.sleeping?'💤 Sprout is asleep — tap Wake up when ready.':'☀️ Sprout is awake.';
+  el('speakerStatus').textContent=detail.audio
+    ?'ESP32 reports codec initialized. Use Test pet speaker to verify actual sound.'
+    :'⚠ ESP32 reports audio not initialized. Check USB serial output for Audio errors.';
+  if(profileProtocol>=7)showGrowthProgress(lastAgeMinutes,lastStage,lastInteractions);
+  const open=!!detail.gameActive || Date.now()<localStarUntil;
+  el('cupButtons').hidden=!open;
+  el('startGame').textContent=open?'⭐ Choose one of the three cups':'⭐ Start mini-game';
+  el('startGame').disabled=open||!connected()||sending;
+  if(open)el('gameStatus').textContent='⭐ A star is hidden! Tap Cup 1, 2 or 3 below. Look at Sprout’s screen.';
+  else if(detail.gameResult===1)el('gameStatus').textContent='🌟 You found the star! Great teamwork.';
+  else if(detail.gameResult===2)el('gameStatus').textContent='Not this time! The board shows the winning cup.';
+  else if(detail.gameResult===3)el('gameStatus').textContent='The last round timed out. Start another.';
+  else if(Date.now()<lastStarGuessUntil)el('gameStatus').textContent='Guess sent! Look at the ESP32 to see the answer.';
+  el('previewToggle').textContent=detail.preview?'Stop test preview':'Start test preview';
+  el('previewText').textContent=detail.preview
+    ?`Simulated stage: ${stages[detail.previewStage]} · simulated age: ${detail.previewHours}h. Actual pet age: ${detail.ageHours}h. Nothing is saved by preview.`
+    :'Real stage stays unchanged. Test preview speeds up stage visuals only.';
+  el('nap').textContent='💤 Nap';
+}
+async function readDetails(){
+  if(!connected()||profileProtocol<7||!profilesService)return;
+  try{
+    if(!detailChar)detailChar=await profilesService.getCharacteristic(DETAIL);
+    const data=await gattOperation(()=>detailChar.readValue());
+    if(!data||data.byteLength<19||data.getUint8(0)!==7)throw new Error('Wrong detail format');
+    detail={hygiene:data.getUint8(1),explorations:data.getUint8(2),wins:data.getUint8(3),
+      sleeping:!!data.getUint8(4),audio:!!data.getUint8(5),previewStage:data.getUint8(6),
+      preview:!!data.getUint8(7),gameActive:!!data.getUint8(8),gameResult:data.getUint8(9),
+      ageHours:data.getUint32(10,true),previewHours:data.getUint32(14,true),clock:!!data.getUint8(18),peeks:data.getUint8(19)};
+    updateDetailView();buttons();
+  }catch(error){
+    const why=error.message||String(error);
+    el('sleepStatus').textContent='⚠ Extra activity details unavailable ('+why+'). Wake up still works.';
+    if(Date.now()>=localStarUntil && Date.now()>=lastStarGuessUntil) el('gameStatus').textContent='Unable to read activity status: '+why;
+  }
+}
+async function syncClock(){
+  if(!connected()||profileProtocol<7)return;
+  const now=String(Math.floor(Date.now()/1000));
+  if(!/^\d{10}$/.test(now))return;
+  try{await writeCommand('t'+now);}
+  catch(error){message('Calendar sync unavailable; pet will still track powered-on time. '+(error.message||error));}
+}
+function formatMinutes(mins){
+  const days=Math.floor(mins/1440);
+  const hours=Math.floor((mins%1440)/60);
+  const minutes=mins%60;
+  return (days?days+'d ':'')+(hours?hours+'h ':'')+minutes+'m';
+}
+function onStatus(event){
+  try{
+    const data=event.target.value;
+    if(!data||data.byteLength<4)throw new Error('Board sent an incomplete status');
+    showValue('food',data.getUint8(0));
+    showValue('fun',data.getUint8(1));
+    showValue('energy',data.getUint8(2));
+    const petMood=moods[data.getUint8(3)]||'Happy';
+    el('petMood').textContent='Feeling: '+petMood;
+    el('petArt').dataset.mood=petMood;
+    lastUpdate=Date.now();formatAge();
+    // v0.5–0.7 keep the same first 18 bytes of profile stats.
+    if(data.byteLength>=18 && [5,6,7].includes(data.getUint8(7))){
+      const ver=data.getUint8(7);
+      const stage=data.getUint8(8);
+      const type=data.getUint8(9);
+      const bond=data.getUint8(10);
+      const interactions=data.getUint8(11);
+      const minutes=data.getUint32(12,true);
+      const slot=data.getUint8(16);
+      const flags=data.getUint8(17);
+      const oldSlot=activeSlot;
+      activeSlot=slot;
+      profileProtocol=ver;
+      if(ver>=6 && data.byteLength>=20){
+        occupiedMask=data.getUint8(18);blockedMask=data.getUint8(19);
+      }
+      el('managerPanel').hidden=ver<6;
+      el('carePanel').hidden=ver<7;
+      el('previewPanel').hidden=ver<7;
+      const name=slots[slot-1]?.name||(ver===5?'Sprout':'Pet');
+      el('slotValue').textContent='Slot '+slot+' • '+name;
+      el('stageValue').textContent=stages[stage]||'Unknown';
+      el('personalityValue').textContent=personalities[type]||'Unknown';
+      el('ageValue').textContent=formatMinutes(minutes);
+      el('bondValue').textContent=bond+' / 100';
+      el('interactionValue').textContent=interactions===255?'255+':String(interactions);
+      el('profileNote').textContent='Saved growth and personality belong to the currently active pet.';
+      const enabled=(flags&1)!==0,dirty=(flags&2)!==0;
+      el('saveValue').textContent=!enabled
+        ?'⚠ Saving unavailable. Check the board log; do not switch or power off.'
+        :dirty?'⏳ Changes pending — recent progress will autosave.':'✓ Progress saved in ESP32 flash.';
+      if(ver>=6 && (slot!==oldSlot || el('slots').children.length===0))renderSlots();
+      if(ver>=7){lastAgeMinutes=minutes;lastStage=stage;lastInteractions=interactions;showGrowthProgress(minutes,stage,interactions);}
+    }else{
+      el('managerPanel').hidden=true;
+      el('profileNote').textContent='Connected to older firmware. Upgrade to v0.7 for activities and names.';
+      el('saveValue').textContent='Save status not available in this firmware.';
+    }
+    // New firmware appends three bytes to the original, compatible 4-byte status:
+    // sequence, command ('f' / 'p'), result (0=changed, 1=already full).
+    if(data.byteLength>=7){
+      hasAckProtocol=true;
+      const sequence=data.getUint8(4);
+      const action=String.fromCharCode(data.getUint8(5));
+      const result=data.getUint8(6);
+      if(pending&&action===pending.ch&&sequence!==pending.baseSequence){
+        const label=pending.label;
+        const errors={1:'meter ALREADY FULL',2:'invalid slot',3:'slot already occupied',4:'save failed',5:'slot is empty',6:'slot protected or invalid name'};
+        const note=result===0?`${label} confirmed by pet!`
+          :result===1?`${label} received — meter ALREADY FULL.`
+          :`${label} rejected: ${errors[result]||'unknown error'}.`;
+        el('lastAction').textContent='Last action: '+note;
+        message(note);
+        pending=null;countAck++;
+        if((action==='s'||action==='n'||action==='r')&&profileProtocol>=6){
+          el('slotMessage').textContent=note;
+          void refreshProfiles();
+        }
+      } else if(!pending&&sequence!==lastSequence&&(action==='f'||action==='p')){
+        const note=(action==='f'?'Fed':'Played')+(result===1?' (meter already full)':'');
+        el('lastAction').textContent='Last board action: '+note;
+      }
+      lastSequence=sequence;
+    }
+  }catch(error){message('Unable to decode pet status: '+error.message);}
+}
+// On iOS, BLE GATT reads and writes cannot safely overlap. Serialize them.
+function gattOperation(op){
+  const job=gattTail.then(op,op);
+  gattTail=job.catch(()=>{});
+  return job;
+}
+async function readStatus(){
+  if(!connected()||!statusChar)return;
+  try{
+    const value=await gattOperation(()=>statusChar.readValue());
+    onStatus({target:{value}});
+  }catch(error){message('Refresh failed: '+(error.message||error)+'. Try reconnecting.');}
+}
+function onDisconnect(){
+  clearInterval(poll);poll=null;
+  commandChar=null;statusChar=null;detailChar=null;device=null;
+  localStarUntil=0;lastStarGuessUntil=0;
+  sending=false;clearValues();buttons();formatAge();
+  message('Disconnected. Tap Connect to reconnect.');
+}
+async function connect(){
+  if(!navigator.bluetooth){
+    message('Open the HTTPS page in Bluefy, not ordinary Safari.');return;
+  }
+  try{
+    message('Searching for My Little Pet…');
+    device=await navigator.bluetooth.requestDevice({filters:[{services:[SERVICE]}],optionalServices:[SERVICE]});
+    device.addEventListener('gattserverdisconnected',onDisconnect);
+    message('Connecting…');
+    const server=await device.gatt.connect();
+    const service=await server.getPrimaryService(SERVICE);
+    profilesService=service;
+    commandChar=await service.getCharacteristic(COMMAND);
+    statusChar=await service.getCharacteristic(STATUS);
+    clearValues();
+    try{
+      await gattOperation(()=>statusChar.startNotifications());
+      statusChar.addEventListener('characteristicvaluechanged',onStatus);
+    }catch(error){console.warn('Status notifications unavailable, will use polling',error);}
+    buttons();
+    await readStatus();
+    if(profileProtocol>=6)await refreshProfiles();
+    if(profileProtocol>=7){await syncClock();await new Promise(r=>setTimeout(r,280));await readStatus();await readDetails();}
+    clearInterval(poll);
+    // Only poll when notifications haven't delivered a reading recently.
+    poll=setInterval(()=>{
+      formatAge();
+      if(connected()&&!sending&&Date.now()-lastUpdate>3500)readStatus();
+      if(connected()&&!sending&&profileProtocol>=7)readDetails();
+    },3500);
+    message('Connected. Feed, Play, explore, or switch pets below.');
+  }catch(error){
+    const why=error.message||String(error);
+    if(device&&device.gatt&&device.gatt.connected)device.gatt.disconnect();
+    onDisconnect();message('Connection failed: '+why);
+  }
+}
+async function writeCommand(ch){
+  const data=new TextEncoder().encode(ch);
+  return gattOperation(async()=>{
+    if(typeof commandChar.writeValueWithResponse==='function'){
+      await commandChar.writeValueWithResponse(data);
+    }else{
+      await commandChar.writeValue(data);
+    }
+  });
+}
+async function action(ch,label){
+  if(!connected()||sending)return;
+  sending=true;buttons();countSent++;
+  const thisPending={ch:ch[0],label,baseSequence:lastSequence};
+  pending=thisPending;
+  message(`${label}: sending to pet…`);
+  try{
+    await writeCommand(ch);
+    if(pending===thisPending)message(`${label} sent. Checking pet response…`);
+    const profileAction=['s','n','r'].includes(ch[0]);
+    for(let attempt=0;attempt<(profileAction?4:2)&&pending===thisPending;attempt++){
+      await new Promise(resolve=>setTimeout(resolve,profileAction?650:400));
+      await readStatus();
+    }
+    if(!pending&&profileProtocol>=7){
+      if(ch[0]==='s'||ch[0]==='n')await syncClock();
+      await readDetails();
+      if(profileAction)await refreshProfiles();
+    }
+    if(pending===thisPending){
+      message(hasAckProtocol
+        ?`${label} sent, but the pet hasn't confirmed it yet. Tap Refresh.`
+        :`${label} sent. Board firmware v0.4 doesn't report action receipts. Update firmware to v0.4.1.`);
+      el('lastAction').textContent='Last action: no confirmation for '+label;
+      if(profileAction)el('slotMessage').textContent='No board confirmation. Refresh the list before retrying.';
+      pending=null;
+    }
+  }catch(error){
+    if(pending===thisPending)pending=null;
+    message(`${label} could not be sent: ${error.message||error}. Reconnect if needed.`);
+  }finally{sending=false;buttons();}
+}
+
+function renderSlots(){
+  if(profileProtocol<6)return;
+  const root=el('slots');root.replaceChildren();
+  for(let i=1;i<=4;i++){
+    const profile=slots[i-1];
+    const state=profile?.state??((blockedMask&(1<<(i-1)))?2:(occupiedMask&(1<<(i-1)))?1:0);
+    const card=document.createElement('div');card.className='slot-card'+(i===activeSlot?' active':'')+(state===2?' protected':'');
+    const top=document.createElement('div');top.className='slot-top';
+    const info=document.createElement('div');
+    const title=document.createElement('div');title.className='slot-title';
+    title.textContent=`Slot ${i} — ${state===1?(profile?.name||'Saved pet'):state===2?'Protected save':'Empty'}`;
+    const subtitle=document.createElement('div');subtitle.className='slot-sub';
+    subtitle.textContent=state===1
+      ?`${stages[profile?.stage||0]} · ${formatMinutes(profile?.minutes||0)} together`
+      :state===2?'Existing data cannot be safely read. No changes allowed.'
+      :'Ready for a new pet';
+    info.append(title,subtitle);top.append(info);
+    if(i===activeSlot){const badge=document.createElement('span');badge.className='tag live';badge.textContent='Active';top.append(badge);}
+    card.append(top);
+    if(state===1&&i!==activeSlot){
+      const btn=document.createElement('button');btn.className='secondary';btn.textContent='Switch to this pet';
+      btn.disabled=!connected()||sending;
+      btn.addEventListener('click',()=>action('s'+i,'Switch to Slot '+i));
+      card.append(btn);
+    }else if(state===0){
+      const row=document.createElement('div');row.className='slot-entry';
+      const field=document.createElement('input');field.type='text';field.maxLength=11;field.placeholder='Pet name (11 chars)';field.setAttribute('aria-label','Name for new pet in slot '+i);field.autocomplete='off';
+      const btn=document.createElement('button');btn.className='feed';btn.textContent='Create';btn.disabled=!connected()||sending;
+      btn.addEventListener('click',()=>{
+        const name=field.value.trim();
+        if(!/^[A-Za-z0-9][A-Za-z0-9 -]{0,10}$/.test(name)){
+          el('slotMessage').textContent='Use 1–11 letters/numbers, spaces or hyphens; start with a letter/number.';return;
+        }
+        if(!confirm(`Create ${name} in empty Slot ${i} and switch to it?`))return;
+        action('n'+i+name,'Create '+name);
+      });
+      row.append(field,btn);card.append(row);
+    }
+    if(state===1&&i===activeSlot&&profileProtocol>=7){
+      const row=document.createElement('div');row.className='slot-entry';
+      const field=document.createElement('input');field.type='text';field.maxLength=11;
+      field.placeholder='Rename this pet';field.autocomplete='off';field.value=profile?.name||'';
+      field.setAttribute('aria-label','Rename active pet in slot '+i);
+      const btn=document.createElement('button');btn.className='secondary';btn.textContent='Rename';
+      btn.addEventListener('click',()=>{
+        const name=field.value.trim();
+        if(!/^[A-Za-z0-9][A-Za-z0-9 -]{0,10}$/.test(name)){
+          el('slotMessage').textContent='Name: 1–11 letters/numbers, spaces or hyphens; begin with a letter/number.';return;
+        }
+        if(!confirm(`Rename Slot ${i} to ${name}? Pet progress stays the same.`))return;
+        action('r'+i+name,'Rename Slot '+i);
+      });
+      row.append(field,btn);card.append(row);
+    }
+    root.append(card);
+  }
+  buttons();
+}
+
+async function refreshProfiles(){
+  if(!connected()||profileProtocol<6||refreshingProfiles||!profilesService)return;
+  refreshingProfiles=true;
+  el('slotMessage').textContent='Reading four save slots from pet…';
+  try{
+    for(let i=0;i<4;i++){
+      if(!profilesChars[i])profilesChars[i]=await profilesService.getCharacteristic(SLOT_UUIDS[i]);
+      const data=await gattOperation(()=>profilesChars[i].readValue());
+      if(!data||data.byteLength<20||![6,7].includes(data.getUint8(0))||data.getUint8(1)!==i+1)
+        throw new Error('Unexpected slot '+(i+1)+' response');
+      const bytes=[];
+      for(let j=9;j<20;j++){const b=data.getUint8(j);if(!b)break;bytes.push(b);}
+      slots[i]={state:data.getUint8(2),stage:data.getUint8(3),type:data.getUint8(4),
+        minutes:data.getUint32(5,true),name:String.fromCharCode(...bytes)};
+    }
+    el('slotValue').textContent='Slot '+activeSlot+' • '+(slots[activeSlot-1]?.name||'Pet');
+    el('slotMessage').textContent='Save list updated. Current pet can be renamed without resetting progress.';
+    renderSlots();
+  }catch(error){el('slotMessage').textContent='Unable to read pet saves: '+(error.message||error);}
+  finally{refreshingProfiles=false;buttons();}
+}
+
+el('connect').addEventListener('click',connect);
+el('disconnect').addEventListener('click',()=>{
+  if(device&&device.gatt&&device.gatt.connected)device.gatt.disconnect();
+  onDisconnect();
+});
+el('feed').addEventListener('click',()=>action('f','Feed'));
+el('play').addEventListener('click',()=>action('p','Play'));
+for(const [id,code,label] of [
+  ['clean','c','Clean'],['explore','e','Explore'],['peek','b','Peekaboo'],
+
+  ['previewToggle','q','Toggle test preview']
+])el(id).addEventListener('click',()=>action(code,label));
+el('startGame').addEventListener('click',async()=>{
+  if(!connected()||sending)return;
+  localStarUntil=Date.now()+43000;lastStarGuessUntil=0;
+  el('cupButtons').hidden=false;
+  el('gameStatus').textContent='⭐ Find the star! Choose Cup 1, 2 or 3 below.';
+  el('startGame').disabled=true;
+  await action('g','Start star game');
+  if(!connected()){localStarUntil=0;el('cupButtons').hidden=true;}
+});
+for(const n of [1,2,3]){
+  el('cup'+n).addEventListener('click',async()=>{
+    if(!connected()||sending)return;
+    localStarUntil=0;
+    lastStarGuessUntil=Date.now()+8500;
+    el('cupButtons').hidden=true;
+    el('gameStatus').textContent='Guessing Cup '+n+'… watch Sprout reveal the star!';
+    await action(String(n),'Guess Cup '+n);
+  });
+}
+el('boardSound').addEventListener('click',()=>action('v','Test pet speaker'));
+el('phoneSound').addEventListener('click',async()=>{
+  try{
+    const C=window.AudioContext||window.webkitAudioContext;
+    if(!C)throw new Error('AudioContext not available');
+    const ctx=new C();
+    await ctx.resume();
+    const start=ctx.currentTime;
+    for(const [hz,delay] of [[500,0],[820,0.22],[1080,0.44]]){
+      const oscillator=ctx.createOscillator(),gain=ctx.createGain();
+      oscillator.type='sine';oscillator.frequency.value=hz;
+      gain.gain.setValueAtTime(.0001,start+delay);
+      gain.gain.exponentialRampToValueAtTime(.13,start+delay+.025);
+      gain.gain.exponentialRampToValueAtTime(.0001,start+delay+.17);
+      oscillator.connect(gain).connect(ctx.destination);
+      oscillator.start(start+delay);oscillator.stop(start+delay+.19);
+    }
+    el('speakerStatus').textContent='iPhone sound test played locally. Pet speaker is a separate test.';
+    setTimeout(()=>ctx.close().catch(()=>{}),1100);
+  }catch(e){el('speakerStatus').textContent='iPhone sound test failed: '+(e.message||e);}
+});
+el('nap').addEventListener('click',()=>action('z','Nap'));
+el('wake').addEventListener('click',()=>action('w','Wake up'));
+el('refresh').addEventListener('click',()=>readStatus());
+el('reloadSlots').addEventListener('click',()=>refreshProfiles());
+clearValues();buttons();formatAge();
+if(!window.isSecureContext||!navigator.bluetooth)
+  message('Open the hosted HTTPS address inside Bluefy, not Safari or a local file.');
+</script>
+</body></html>

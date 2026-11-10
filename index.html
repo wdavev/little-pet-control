@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#10172f">
-<title>My Little Pet • Sprout v0.7</title>
+<title>My Little Pet • Sprout v0.7.1</title>
 <style>
 :root{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#f5f7ff;background:#10172f;font-size:16px}
 *{box-sizing:border-box} body{margin:0;min-height:100vh;background:radial-gradient(circle at 52% 16%,#273963 0,#10172f 65%)}
@@ -63,7 +63,7 @@ input{min-width:70px;border-radius:9px;border:1px solid #7187a8;background:#111d
 </style>
 </head>
 <body><main>
-<header class="top"><div><h1>🐣 My Little Pet</h1><div class="small">Sprout & friends • Baby care v0.7</div></div><div id="badge" class="tag">Not connected</div></header>
+<header class="top"><div><h1>🐣 My Little Pet</h1><div class="small">Sprout & friends • Baby care v0.7.1</div></div><div id="badge" class="tag">Not connected</div></header>
 <section class="stage" aria-label="Pet portrait matching the ESP32 display">
 <!-- This SVG deliberately follows the ESP32 ST7789 drawPet geometry/colors. -->
 <svg id="petArt" class="pet-svg" viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg" aria-label="Teal Sprout with round ears, eyes, blush and feet" data-mood="Happy">
@@ -95,8 +95,9 @@ input{min-width:70px;border-radius:9px;border:1px solid #7187a8;background:#111d
 <div class="stat"><div class="stathead"><span>🧽 Cleanliness</span><span id="cleanValue">—</span></div><div class="track"><div class="fill energy" id="cleanBar"></div></div></div>
 <div class="care-grid">
  <button id="clean" disabled>🧼 Clean</button><button id="explore" disabled>🔎 Explore</button>
- <button id="peek" disabled>👀 Peekaboo</button><button id="nap" disabled>💤 Nap / Wake</button>
-</div><div class="details" id="activityCount">Explorations: — · Star wins: — · Peekaboo: —</div>
+ <button id="peek" disabled>👀 Peekaboo</button><button id="nap" disabled>💤 Nap</button>
+ <button id="wake" disabled>☀️ Wake up</button>
+</div><div class="details" id="sleepStatus">Sleep controls are always available when connected.</div><div class="details" id="activityCount">Explorations: — · Star wins: — · Peekaboo: —</div>
 <h2 style="margin-top:22px">⭐ Find the star</h2>
 <div class="details">Sprout hides a star behind one of three cups. Pick a cup to guess where it is!</div>
 <button class="secondary" id="startGame" style="width:100%;margin-top:10px" disabled>⭐ Start mini-game</button>
@@ -174,9 +175,9 @@ function buttons(){
   el('disconnect').disabled=!active;
   el('connect').disabled=active||sending;
   el('reloadSlots').disabled=!active||sending||profileProtocol<6;
-  for(const id of ['clean','explore','peek','nap','startGame','cup1','cup2','cup3','previewToggle'])
+  for(const id of ['clean','explore','peek','nap','wake','startGame','cup1','cup2','cup3','previewToggle'])
     el(id).disabled=!active||sending||profileProtocol<7;
-  el('nap').textContent=detail.sleeping?'☀️ Wake up':'💤 Take a nap';
+  el('nap').textContent='💤 Nap';
   for(const btn of el('slots').querySelectorAll('button'))btn.disabled=!active||sending;
   el('badge').textContent=active?'Connected':'Not connected';
   el('badge').className=active?'tag live':'tag';
@@ -198,6 +199,7 @@ function clearValues(){
   el('carePanel').hidden=true;el('previewPanel').hidden=true;
   el('petArt').dataset.mood='Happy';el('cleanValue').textContent='—';el('cleanBar').style.width='0%';
   el('activityCount').textContent='Explorations: — · Star wins: — · Peekaboo: —';
+  el('sleepStatus').textContent='Activity readings pending; Wake works even without them.';
   el('cupButtons').hidden=true;el('gameStatus').textContent='Start a game to play together.';
   el('managerPanel').hidden=true;el('slots').replaceChildren();
   el('slotMessage').textContent='Connect to load saved pets.';
@@ -232,6 +234,7 @@ function updateDetailView(){
   el('cleanValue').textContent=detail.hygiene+' / 100';
   el('cleanBar').style.width=detail.hygiene+'%';
   el('activityCount').textContent=`Explorations: ${detail.explorations} · Star wins: ${detail.wins} · Peekaboo: ${detail.peeks}`;
+  el('sleepStatus').textContent=detail.sleeping?'💤 Sprout is asleep — tap Wake up when ready.':'☀️ Sprout is awake.';
   if(profileProtocol>=7)showGrowthProgress(lastAgeMinutes,lastStage,lastInteractions);
   el('cupButtons').hidden=!detail.gameActive;
   el('startGame').textContent=detail.gameActive?'⭐ Star hidden — choose a cup':'⭐ Start mini-game';
@@ -244,7 +247,7 @@ function updateDetailView(){
   el('previewText').textContent=detail.preview
     ?`Simulated stage: ${stages[detail.previewStage]} · simulated age: ${detail.previewHours}h. Actual pet age: ${detail.ageHours}h. Nothing is saved by preview.`
     :`Real stage stays unchanged. Test preview speeds up stage visuals only.`;
-  el('nap').textContent=detail.sleeping?'☀️ Wake up':'💤 Take a nap';
+  el('nap').textContent='💤 Nap';
 }
 async function readDetails(){
   if(!connected()||profileProtocol<7||!profilesService)return;
@@ -257,7 +260,11 @@ async function readDetails(){
       preview:!!data.getUint8(7),gameActive:!!data.getUint8(8),gameResult:data.getUint8(9),
       ageHours:data.getUint32(10,true),previewHours:data.getUint32(14,true),clock:!!data.getUint8(18),peeks:data.getUint8(19)};
     updateDetailView();buttons();
-  }catch(error){el('gameStatus').textContent='Unable to read activity status: '+(error.message||error);}
+  }catch(error){
+    const why=error.message||String(error);
+    el('sleepStatus').textContent='⚠ Extra activity details unavailable ('+why+'). Wake up still works.';
+    el('gameStatus').textContent='Unable to read activity status: '+why;
+  }
 }
 async function syncClock(){
   if(!connected()||profileProtocol<7)return;
@@ -542,7 +549,8 @@ for(const [id,code,label] of [
   ['cup2','2','Guess Cup 2'],['cup3','3','Guess Cup 3'],
   ['previewToggle','q','Toggle test preview']
 ])el(id).addEventListener('click',()=>action(code,label));
-el('nap').addEventListener('click',()=>action(detail.sleeping?'w':'z',detail.sleeping?'Wake up':'Nap'));
+el('nap').addEventListener('click',()=>action('z','Nap'));
+el('wake').addEventListener('click',()=>action('w','Wake up'));
 el('refresh').addEventListener('click',()=>readStatus());
 el('reloadSlots').addEventListener('click',()=>refreshProfiles());
 clearValues();buttons();formatAge();
